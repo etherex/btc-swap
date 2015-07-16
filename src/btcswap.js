@@ -1,5 +1,4 @@
 var BigNumber = require('bignumber.js');
-var bs58 = require('bs58');
 var web3 = require('web3');
 var bitcoin = require('bitcoinjs-lib');
 var abi = require('./abi');
@@ -388,12 +387,11 @@ var btcSwap = function(params) {
     return bnWei.div(bnWeiPerSatoshi).div(SATOSHI_PER_BTC).round(8).toString(10);
   };
 
-  this.toBtcAddr = function(bignum) { // , versionAddr) {
+  this.toBtcAddr = function(bignum) {
     var hexAddress = web3.fromDecimal(bignum).substr(2);
-    // console.log("hexAddress", hexAddress, this.versionAddr);
+    if (this.debug)
+      console.log('hexAddress ', hexAddress, ' versionbyte: ', this.versionAddr);
     return new bitcoin.Address(new Buffer(hexAddress, 'hex'), this.versionAddr);
-    // return bs58.encode(hexAddress.substr(2));
-    // return new Bitcoin.Address(Crypto.util.hexToBytes(btcAddr), versionAddr).toString();
   };
 
   // needed for handling negative bignums
@@ -408,27 +406,6 @@ var btcSwap = function(params) {
     var hash = this.bignumToHex(bignum);
     return hash === '0' ? '' : hash;
   };
-
-  // this.decodeBase58Check = function(btcAddr) {
-  //   var versionAndHash = Bitcoin.Address.decodeString(btcAddr);
-  //   var byteArrayData = versionAndHash.hash;
-  //
-  //   var ret = "",
-  //     i = 0,
-  //     len = byteArrayData.length;
-  //
-  //   while (i < len) {
-  //     var a = byteArrayData[i];
-  //     var h = a.toString(16);
-  //     if (a < 10) {
-  //       h = "0" + h;
-  //     }
-  //     ret += h;
-  //     i++;
-  //   }
-  //
-  //   return ret;
-  // };
 
   this.verifyPoWClicked = function(ticketId, txHash, nonce, success, failure) {
     var hexTicketId = new BigNumber(ticketId).toString(16);
