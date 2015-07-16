@@ -391,7 +391,7 @@ var btcSwap = function(params) {
     var hexAddress = web3.fromDecimal(bignum).substr(2);
     if (this.debug)
       console.log('hexAddress ', hexAddress, ' versionbyte: ', this.versionAddr);
-    return new bitcoin.Address(new Buffer(hexAddress, 'hex'), this.versionAddr);
+    return new bitcoin.Address(new Buffer(hexAddress, 'hex'), this.versionAddr).toString();
   };
 
   // needed for handling negative bignums
