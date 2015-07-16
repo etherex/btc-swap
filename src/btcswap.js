@@ -1,6 +1,6 @@
 var BigNumber = require('bignumber.js');
-var web3 = require('web3');
 var bitcoin = require('bitcoinjs-lib');
+var web3 = require('web3');
 var abi = require('./abi');
 
 var ku = require('./keccak.js');
@@ -244,7 +244,7 @@ var btcSwap = function(params) {
     );
   };
 
-  this.reserveTicket = function(ticketId, txHash, powNonce, success, failure) {
+  this.reserveTicket = function(ticketId, txHash, powNonce, success, failure, completed) {
     var objParam = {gas: 500000};
 
     var startTime = Date.now();
@@ -258,13 +258,13 @@ var btcSwap = function(params) {
       var endTime = Date.now();
       var durationSec = (endTime - startTime) / 1000;
       if (this.debug)
-        console.log('@@@@ callResult: ', result.toNumber(), ' duration: ', durationSec);
+        console.log('reserveTicket call:', result.toNumber(), ' duration:', durationSec);
 
       var rval = result.toNumber();
       switch (rval) {
         case ticketId:
           if (this.debug)
-            console.log('@@@@ call GOOD so now sendTx...');
+            console.log('reserveTicket call looks good, now sending transaction...');
           break;  // the only result that does not return
         case RESERVE_FAIL_UNRESERVABLE:
           failure('Ticket already reserved');
@@ -280,31 +280,37 @@ var btcSwap = function(params) {
       }
 
       // at this point, the eth_call succeeded
+      if (this.debug)
+        return;
 
-      var rvalFilter = this.contract.ticketEvent({ ticketId: ticketId });
-      rvalFilter.watch(function(err, res) {
-        // TODO try-finally
-        //
-        if (err) {
+      var reserveFilter = this.contract.ticketEvent({ ticketId: ticketId });
+      reserveFilter.watch(function(err, res) {
+        try {
+          if (err) {
+            if (this.debug)
+              console.log('reserveFilter error: ', err);
+            failure(err);
+            return;
+          }
+
           if (this.debug)
-            console.log('@@@ rvalFilter err: ', err);
-          failure(err);
-          return;
+            console.log('reserveFilter result: ', res);
+
+          var eventArgs = res.args;
+          if (eventArgs.rval.toNumber() === ticketId) {
+            if (this.debug)
+              console.log('Ticket reserved: ', ticketId);
+            completed(ticketId);
+          }
+          else {
+            failure('Reserve ticket error: ' + rval);
+          }
         }
-
-        if (this.debug)
-          console.log('@@@ rvalFilter res: ', res);
-
-        var eventArgs = res.args;
-        if (eventArgs.rval.toNumber() === ticketId) {
+        finally {
           if (this.debug)
-            console.log('Ticket reserved: ', ticketId);
+            console.log('reserveFilter.stopWatching()...');
+          reserveFilter.stopWatching();
         }
-        else {
-          failure('Reserve ticket error: ' + rval);
-        }
-
-        rvalFilter.stopWatching();
       });
 
       this.contract.reserveTicket.sendTransaction(ticketId, txHash, powNonce, objParam, function(err, res) {
@@ -313,7 +319,7 @@ var btcSwap = function(params) {
         if (err) {
           failure(err);
           if (this.debug)
-            console.log('@@@ reserveTicket sendtx err: ', err);
+            console.log('reserveTicket sendTx error: ', err);
           return;
         }
         success(res);
