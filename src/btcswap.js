@@ -39,7 +39,7 @@ var btcSwap = function(params) {
   else
     this.btcTestnet = params.btcTestnet;
 
-  web3.setProvider(new web3.providers.HttpProvider('//' + params.host));
+  web3.setProvider(new web3.providers.HttpProvider(params.host));
 
   web3.eth.getCode(params.address, function(err, result) {
     if (err) {

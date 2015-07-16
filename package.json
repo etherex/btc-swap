@@ -4,7 +4,7 @@
   "description": "Ethereum Bitcoin Swap library",
   "main": "lib/btcswap.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha"
   },
   "repository": {
     "type": "git",
@@ -15,7 +15,7 @@
     "Ethereum",
     "Bitcoin"
   ],
-  "author": "jchow",
+  "author": "AJoseph",
   "license": "MIT",
   "private": true,
   "bugs": {
@@ -30,6 +30,7 @@
   "dependencies": {
     "bignumber.js": "^2.0.7",
     "bs58": "^2.0.1",
+    "mocha": "^2.2.5",
     "web3": "^0.8.1"
   }
 }
