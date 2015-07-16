@@ -10,13 +10,13 @@ before(function() {
 describe('lookupTicket', function() {
   it('simple', function(done) {
     btcSwap.lookupTicket(2, function(result) {
-      assert.equal(result.id, 2);
-      assert.equal(result.price, 0.0017);
-      // TODO result.amount
-      assert.equal(result.address, 'mvBWJFv8Uc84YEyZKBm8HZQ7qrvmBiH7zR');
-      assert.equal(result.expiry, 1);
-      assert.equal(result.claimer, '');
-      assert.equal(result.txhash, '');
+      assert.strictEqual(result.id, 2);
+      assert.strictEqual(result.price, '0.0017');
+      assert.strictEqual(result.amount, '170000000000000000');
+      assert.strictEqual(result.address, 'mvBWJFv8Uc84YEyZKBm8HZQ7qrvmBiH7zR');
+      assert.strictEqual(result.expiry, 1);
+      assert.strictEqual(result.claimer, '');
+      assert.strictEqual(result.txhash, '');
       done();
     });
   });
