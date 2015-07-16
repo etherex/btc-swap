@@ -6,6 +6,8 @@ module.exports = function(grunt) {
       },
       dist: {
         files: {
+          // "lib/btcproof.js": "src/btcproof.js",
+          "lib/keccak.js": "src/keccak.js",
           "lib/btcswap.js": "src/btcswap.js",
           "lib/abi.js": "src/abi.js"
         }
