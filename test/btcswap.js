@@ -13,7 +13,7 @@ describe('lookupTicket', function() {
       assert.equal(result.id, 2);
       assert.equal(result.price, 0.0017);
       // TODO result.amount
-      // assert.equal(result.address, 'mvBWJFv8Uc84YEyZKBm8HZQ7qrvmBiH7zR');
+      assert.equal(result.address, 'mvBWJFv8Uc84YEyZKBm8HZQ7qrvmBiH7zR');
       assert.equal(result.expiry, 1);
       assert.equal(result.claimer, '');
       assert.equal(result.txhash, '');

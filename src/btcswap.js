@@ -1,6 +1,7 @@
 var BigNumber = require('bignumber.js');
 var bs58 = require('bs58');
 var web3 = require('web3');
+var bitcoin = require('bitcoinjs-lib');
 var abi = require('./abi');
 
 var ku = require('./keccak.js');
@@ -65,7 +66,7 @@ var btcSwap = function(params) {
   this.createTicket = function(btcAddress, numEther, btcPrice, success, failure) {
     var addrHex;
     try {
-      addrHex = '0x' + bs58.decode(btcAddress);
+      addrHex = '0x' + bitcoin.Address.fromBase58Check(btcAddress).toString('hex');
       if (this.debug)
         console.log("BTC address hex: ", addrHex);
     }
@@ -388,9 +389,10 @@ var btcSwap = function(params) {
   };
 
   this.toBtcAddr = function(bignum) { // , versionAddr) {
-    var hexAddress = web3.fromDecimal(bignum);
-    console.log("hexAddress", hexAddress.substr(2));
-    return bs58.encode(hexAddress.substr(2));
+    var hexAddress = web3.fromDecimal(bignum).substr(2);
+    // console.log("hexAddress", hexAddress, this.versionAddr);
+    return new bitcoin.Address(new Buffer(hexAddress, 'hex'), this.versionAddr);
+    // return bs58.encode(hexAddress.substr(2));
     // return new Bitcoin.Address(Crypto.util.hexToBytes(btcAddr), versionAddr).toString();
   };
 
