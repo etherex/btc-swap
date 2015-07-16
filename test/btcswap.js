@@ -23,9 +23,9 @@ describe('lookupTicket', function() {
 });
 
 function init() {
-  console.log('init')
+  console.log('init');
 
-  const host = 'http://localhost:8549';
+  const host = 'localhost:8545';
   const address = '0xc214fd7067d32ffd79cfa7b425317f7194fc5546';  // Olympic with PoW disabled
   const btcTestnet = true;
   btcSwap = new btcswap({

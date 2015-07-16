@@ -39,7 +39,7 @@ var btcSwap = function(params) {
   else
     this.btcTestnet = params.btcTestnet;
 
-  web3.setProvider(new web3.providers.HttpProvider(params.host));
+  web3.setProvider(new web3.providers.HttpProvider('http://' + params.host));
 
   web3.eth.getCode(params.address, function(err, result) {
     if (err) {
@@ -250,10 +250,15 @@ var btcSwap = function(params) {
     var startTime = Date.now();
 
     this.contract.reserveTicket.call(ticketId, txHash, powNonce, objParam, function(error, result) {
+      if (error) {
+        failure(error);
+        return;
+      }
+
       var endTime = Date.now();
       var durationSec = (endTime - startTime) / 1000;
       if (this.debug)
-        console.log('@@@@ callResult: ', result, ' duration: ', durationSec);
+        console.log('@@@@ callResult: ', result.toNumber(), ' duration: ', durationSec);
 
       var rval = result.toNumber();
       switch (rval) {
@@ -269,8 +274,8 @@ var btcSwap = function(params) {
           return;
         default:
           if (this.debug)
-            console.log('Unexpected error rval: ', rval);
-          failure('Unexpected error' + rval);
+            console.log('Unexpected error:', rval);
+          failure('Unexpected error: ' + rval);
           return;
       }
 
