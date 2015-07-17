@@ -64,7 +64,7 @@ var btcSwap = function(params) {
   this.contract = web3.eth.contract(abi).at(params.address);
 
   if (this.debug)
-    console.log('BTCswap contract: ', this.contract);
+    console.log('BTCswap contract:', this.contract);
 
   this.versionAddr = this.btcTestnet ? 111 : 0;
 
@@ -74,7 +74,7 @@ var btcSwap = function(params) {
     try {
       addrHex = '0x' + bitcoin.Address.fromBase58Check(btcAddress).hash.toString('hex');
       if (this.debug)
-        console.log("BTC address hex: ", addrHex);
+        console.log("BTC address hex:", addrHex);
     }
     catch (err) {
       failure(new Error(btcAddress + ' is an invalid Bitcoin address: ' + err.message));
@@ -92,7 +92,7 @@ var btcSwap = function(params) {
       var endTime = Date.now();
       var durationSec = (endTime - startTime) / 1000;
       if (this.debug)
-        console.log('Call result: ', result, ' duration: ', durationSec);
+        console.log('Call result:', result, 'duration:', durationSec);
 
       var rval = result.toNumber();
       if (rval <= 0) {
@@ -138,11 +138,13 @@ var btcSwap = function(params) {
         var eventArgs = res.args;
         var ticketId = eventArgs.rval.toNumber();
         if (ticketId > 0) {
-          this.lookupTicket(ticketId, function(ticket) {
-            completed(pendingHash, ticket);
-          }, function(error) {
-            failure('Could not lookup created ticket: ' + error);
-          });
+          setTimeout( function() {
+            this.lookupTicket(ticketId, function(ticket) {
+              completed(pendingHash, ticket);
+            }, function(error) {
+              failure('Could not lookup created ticket: ' + error);
+            });
+          }.bind(this), 1000);
         }
         else {
           failure('Ticket could not be created.');
@@ -218,17 +220,17 @@ var btcSwap = function(params) {
         try {
           if (err) {
             if (this.debug)
-              console.log('@@@ rvalFilter err: ', err);
+              console.log('claimFilter error: ', err);
             failure(err);
             return;
           }
 
-          console.log('@@@ rvalFilter res: ', res);
+          console.log('claimFilter result:', res);
 
           var eventArgs = res.args;
           if (eventArgs.rval.toNumber() === ticketId) {
             if (this.debug)
-              console.log('Ticket claimed: ', ticketId);
+              console.log('Ticket claimed:', ticketId);
             completed(res);
           }
           else {
@@ -312,7 +314,11 @@ var btcSwap = function(params) {
           if (eventArgs.rval.toNumber() === ticketId) {
             if (this.debug)
               console.log('Ticket reserved:', ticketId);
-            completed(ticketId);
+            this.lookupTicket(ticketId, function(ticket) {
+              completed(ticket);
+            }, function(lookupError) {
+              failure('Could not lookup reserved ticket: ' + lookupError);
+            });
           }
           else {
             failure('Reserve ticket error: ' + rval);
@@ -508,17 +514,26 @@ var btcSwap = function(params) {
           strHash = ku.wordsToHexString(dst);
           bnHash = new BigNumber('0x' + strHash);
           if (this.debug)
-            console.log("PASS", i, strHash, bnHash.toString());
+            console.log("PASS", i, strHash, "DIFF", bnTarget.minus(bnHash).toString());
 
-          if (i >= 100000000)
+          if (i >= 1000)
             failure("PoW failed.");
             // reject("PoW failed.");
 
           i += 1;
-          if (bnHash.gte(bnTarget) && i < 100000000)
+          if (bnHash.gte(bnTarget) && i < 1000)
             setTimeout(tryPoW, 10, i);
-          else
+          else {
             success(i);
+
+            if (this.debug) {
+              console.log("endTime: ", new Date().getTime());
+              console.log("duration: ", (new Date().getTime() - startTime) / 1000.0);
+
+              console.log('@@@@ nonce: ', i);
+              console.log('@@@ strHash: ', strHash);
+            }
+          }
             // resolve(i);
         }.bind(this);
 
@@ -532,14 +547,6 @@ var btcSwap = function(params) {
 
         // if (i === 100000000)
         //   reject("PoW failed.");
-
-        if (this.debug) {
-          console.log("endTime: ", new Date().getTime());
-          console.log("duration: ", (new Date().getTime() - startTime) / 1000.0);
-
-          // console.log('@@@@ i: ', i);
-          console.log('@@@ strHash: ', strHash);
-        }
 
         // resolve(i);
       // }.bind(this));
