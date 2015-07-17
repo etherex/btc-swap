@@ -21,15 +21,16 @@ before(function() {
 });
 
 describe('lookupTicket', function() {
-  it('simple', function(done) {
-    btcSwap.lookupTicket(2, function(result) {
-      assert.strictEqual(result.id, 2);
-      assert.strictEqual(result.price, '0.0017');
+  it('looks up a ticket', function(done) {
+    btcSwap.lookupTicket(1, function(result) {
+      assert.strictEqual(result.id, 1);
       assert.strictEqual(result.amount, '170000000000000000');
+      assert.strictEqual(result.price, '0.01');
+      assert.strictEqual(result.total, '0.0017');
       assert.strictEqual(result.address, 'mvBWJFv8Uc84YEyZKBm8HZQ7qrvmBiH7zR');
       assert.strictEqual(result.expiry, 1);
       assert.strictEqual(result.claimer, '');
-      assert.strictEqual(result.txhash, '');
+      assert.strictEqual(result.txHash, '');
       done();
     });
   });
