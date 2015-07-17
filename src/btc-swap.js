@@ -179,6 +179,7 @@ var btcSwap = function(params) {
 
   this.claimTicket = function(ticketId, txHex, txHash, txIndex, merkleSibling, txBlockHash, success, completed, failure) {
     txHash = '0x' + txHash;
+    txBlockHash = '0x' + txBlockHash;
     merkleSibling = merkleSibling.map(function(sib) {
       return '0x' + sib;
     });
