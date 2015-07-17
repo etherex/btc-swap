@@ -259,6 +259,8 @@ var btcSwap = function(params) {
   };
 
   this.reserveTicket = function(ticketId, txHash, powNonce, success, completed, failure) {
+    txHash = '0x' + txHash;
+
     var objParam = {gas: 500000};
 
     var startTime = Date.now();
@@ -310,8 +312,8 @@ var btcSwap = function(params) {
           if (this.debug)
             console.log('reserveFilter result:', res);
 
-          var eventArgs = res.args;
-          if (eventArgs.rval.toNumber() === ticketId) {
+          var rval = res.args.rval.toNumber();
+          if (rval === ticketId) {
             if (this.debug)
               console.log('Ticket reserved:', ticketId);
             this.lookupTicket(ticketId, function(ticket) {
@@ -321,6 +323,8 @@ var btcSwap = function(params) {
             });
           }
           else {
+            if (this.debug)
+              console.log('Reserve ticket error: ' + rval);
             failure('Reserve ticket error: ' + rval);
           }
         }
