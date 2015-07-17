@@ -69,10 +69,10 @@ var btcSwap = function(params) {
   this.versionAddr = this.btcTestnet ? 111 : 0;
 
 
-  this.createTicket = function(btcAddress, numEther, btcTotal, success, failure) {
+  this.createTicket = function(btcAddress, numEther, btcTotal, success, completed, failure) {
     var addrHex;
     try {
-      addrHex = '0x' + bitcoin.Address.fromBase58Check(btcAddress).toString('hex');
+      addrHex = '0x' + bitcoin.Address.fromBase58Check(btcAddress).hash.toString('hex');
       if (this.debug)
         console.log("BTC address hex: ", addrHex);
     }
@@ -87,69 +87,73 @@ var btcSwap = function(params) {
 
     var startTime = Date.now();
 
-    var callResult = this.contract.createTicket.call(addrHex, numWei, weiPerSatoshi, objParam);
+    this.contract.createTicket.call(addrHex, numWei, weiPerSatoshi, objParam, function(error, result) {
 
-    var endTime = Date.now();
-    var durationSec = (endTime - startTime) / 1000;
-    if (this.debug)
-      console.log('Call result: ', callResult, ' duration: ', durationSec);
-
-    var rval = callResult.toNumber();
-    if (rval <= 0) {
+      var endTime = Date.now();
+      var durationSec = (endTime - startTime) / 1000;
       if (this.debug)
-        console.log('Return value: ', rval);
-      var msg = 'Offer could not be created';
-      failure(msg);
-      return;
-    }
+        console.log('Call result: ', result, ' duration: ', durationSec);
 
-    this.contract.createTicket.sendTransaction(addrHex,
-      numWei,
-      weiPerSatoshi,
-      objParam,
-      (function(err, result) {
+      var rval = result.toNumber();
+      if (rval <= 0) {
         if (this.debug)
-          console.log("createTicket result: ", result);
+          console.log('Return value:', rval);
+        var msg = 'Invalid ticket, it will not be created.';
+        failure(msg);
+        return;
+      }
+
+      this.contract.createTicket.sendTransaction(addrHex, numWei, weiPerSatoshi, objParam, function(err, res) {
+        if (this.debug)
+          console.log("createTicket result:", res);
+
         if (err) {
           failure(err);
-          console.log('@@@ createTicket sendtx err: ', err);
+          console.log('createTicket sendTx error:', err);
           return;
         }
 
-        this.watchCreateTicket(addrHex, numWei, weiPerSatoshi, success, failure);
-      }).bind(this)
-    );
+        success(res);
+
+        this.watchCreateTicket(addrHex, numWei, weiPerSatoshi, res, completed, failure);
+      }.bind(this));
+    }.bind(this));
   };
 
-  this.watchCreateTicket = function(addrHex, numWei, weiPerSatoshi, success, failure) {
-    var rvalFilter = this.contract.ticketEvent({ ticketId: 0 }, { fromBlock: 'latest', toBlock: 'latest'});
-    rvalFilter.watch(function(err, res) {
+  this.watchCreateTicket = function(addrHex, numWei, weiPerSatoshi, pendingHash, completed, failure) {
+    var createFilter = this.contract.ticketEvent({ ticketId: 0 }, { fromBlock: 'latest', toBlock: 'latest'});
+
+    createFilter.watch(function(err, res) {
       try {
         if (err) {
           failure(err);
           if (this.debug)
-            console.log('@@@ rvalFilter err: ', err);
+            console.log('createFilter error:', err);
           return;
         }
 
         if (this.debug)
-          console.log('@@@ rvalFilter res: ', res);
+          console.log('createFilter result:', res);
 
         var eventArgs = res.args;
         var ticketId = eventArgs.rval.toNumber();
         if (ticketId > 0) {
-          success(null, ticketId);
+          this.lookupTicket(ticketId, function(ticket) {
+            completed(pendingHash, ticket);
+          }, function(error) {
+            failure('Could not lookup created ticket: ' + error);
+          });
         }
         else {
-          failure('Offer could not be created');
+          failure('Ticket could not be created.');
         }
       }
       finally {
         if (this.debug)
-          console.log('@@@ filter stopWatching...');
-        rvalFilter.stopWatching();
+          console.log('createFilter.stopWatching()...');
+        createFilter.stopWatching();
       }
-    });
+    }.bind(this));
   };
 
   this.claimTicket = function(ticketId, txHex, txHash, txIndex, merkleSibling, txBlockHash, success, completed, failure) {
@@ -172,7 +176,7 @@ var btcSwap = function(params) {
       switch (rval) {
         case ticketId:
           if (this.debug)
-            console.log('@@@@ call GOOD so now sendTx...');
+            console.log('claimTicket call looks good, now sending transaction...');
           break;  // the only result that does not return;
         case CLAIM_FAIL_INVALID_TICKET:  // one way to get here is Claim, mine, then Claim without refreshing the UI
           failure('Invalid Ticket ID' + ' Ticket does not exist or already claimed');
@@ -236,7 +240,7 @@ var btcSwap = function(params) {
             console.log('claimFilter.stopWatching()...');
           claimFilter.stopWatching();
         }
-      });
+      }.bind(this));
 
       this.contract.claimTicket.sendTransaction(ticketId, txHex, txHash, txIndex, merkleSibling, txBlockHash, objParam, function(err, res) {
           if (this.debug)
@@ -248,8 +252,7 @@ var btcSwap = function(params) {
             return;
           }
           success(res);
-        }
-      );
+      }.bind(this));
     }.bind(this));
   };
 
@@ -297,18 +300,18 @@ var btcSwap = function(params) {
         try {
           if (err) {
             if (this.debug)
-              console.log('reserveFilter error: ', err);
+              console.log('reserveFilter error:', err);
             failure(err);
             return;
           }
 
           if (this.debug)
-            console.log('reserveFilter result: ', res);
+            console.log('reserveFilter result:', res);
 
           var eventArgs = res.args;
           if (eventArgs.rval.toNumber() === ticketId) {
             if (this.debug)
-              console.log('Ticket reserved: ', ticketId);
+              console.log('Ticket reserved:', ticketId);
             completed(ticketId);
           }
           else {
@@ -320,22 +323,22 @@ var btcSwap = function(params) {
             console.log('reserveFilter.stopWatching()...');
           reserveFilter.stopWatching();
         }
-      });
+      }.bind(this));
 
       this.contract.reserveTicket.sendTransaction(ticketId, txHash, powNonce, objParam, function(err, res) {
         if (this.debug)
-          console.log("reserveTicket result: ", res);
+          console.log('reserveTicket result:', res);
         if (err) {
           failure(err);
           if (this.debug)
-            console.log('reserveTicket sendTx error: ', err);
+            console.log('reserveTicket sendTx error:', err);
           return;
         }
         success({
           id: ticketId,
           hash: res
         });
-      });
+      }.bind(this));
     }.bind(this));
   };
 
@@ -361,8 +364,8 @@ var btcSwap = function(params) {
           price: this.toBtcPrice(bnWeiPerSatoshi),
           total: this.toBtcTotal(bnWei, bnWeiPerSatoshi),
           expiry: results[i + 4].toNumber(),
-          claimer: results[i + 5].toString(10),
-          txHash: results[i + 6].toString(10)
+          claimer: this.toHash(results[i + 5]),
+          txHash: this.toHash(results[i + 6])
         });
       }
 
@@ -401,7 +404,7 @@ var btcSwap = function(params) {
       if (this.debug)
         console.log("LOOKUP", result);
 
-      if (!result || !result[0]) {
+      if (!result || !result[0] || !result[0].toNumber()) {
         success(false);
         return;
       }
