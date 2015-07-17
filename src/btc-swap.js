@@ -36,6 +36,9 @@ var btcSwap = function(params) {
   if (!params.address) {
     throw new Error('BtcSwap address missing');
   }
+  if (!params.from) {
+    throw new Error('fromAccount missing');
+  }
   if (typeof params.btcTestnet === 'undefined')
     this.btcTestnet = true;
   else
@@ -123,6 +126,9 @@ var btcSwap = function(params) {
   this.watchCreateTicket = function(addrHex, numWei, weiPerSatoshi, pendingHash, completed, failure) {
     var createFilter = this.contract.ticketEvent({ ticketId: 0 }, { fromBlock: 'latest', toBlock: 'latest'});
 
+    if (this.debug)
+      console.log('watching for createTicket')
+
     createFilter.watch(function(err, res) {
       try {
         if (err) {
@@ -140,13 +146,22 @@ var btcSwap = function(params) {
         if (ticketId > 0) {
           setTimeout( function() {
             this.lookupTicket(ticketId, function(ticket) {
+              if (this.debug)
+                console.log('lookup of created ticket: ', ticket);
+
               completed(pendingHash, ticket);
             }, function(error) {
+              if (this.debug)
+                console.log('error lookup for created ticket:', error);
+
               failure('Could not lookup created ticket: ' + error);
             });
           }.bind(this), 1000);
         }
         else {
+          if (this.debug)
+            console.log('return value from failed create ticket: ', ticketId);
+
           failure('Ticket could not be created.');
         }
       }
