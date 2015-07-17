@@ -1,7 +1,20 @@
-const btcswap = require('../src/btcswap.js'),
-  assert = require('assert');
+const BtcSwap = require('../lib/btc-swap.js');
+var assert = require('assert');
 
 var btcSwap;
+
+function init() {
+  console.log('init');
+
+  const host = 'localhost:8545';
+  const address = '0xc214fd7067d32ffd79cfa7b425317f7194fc5546';  // Olympic with PoW disabled
+  const btcTestnet = true;
+  btcSwap = new BtcSwap({
+    host: host,
+    address: address,
+    btcTestnet: btcTestnet
+  });
+}
 
 before(function() {
   init();
@@ -21,16 +34,3 @@ describe('lookupTicket', function() {
     });
   });
 });
-
-function init() {
-  console.log('init');
-
-  const host = 'localhost:8545';
-  const address = '0xc214fd7067d32ffd79cfa7b425317f7194fc5546';  // Olympic with PoW disabled
-  const btcTestnet = true;
-  btcSwap = new btcswap({
-    host: host,
-    address: address,
-    btcTestnet: btcTestnet
-  });
-}
