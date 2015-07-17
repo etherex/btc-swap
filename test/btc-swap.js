@@ -43,27 +43,23 @@ describe('lookupTicket', function() {
 describe('createTicket', function() {
   this.timeout(0);
 
-  it('creates a ticket', function(done) {
+  it.only('creates a ticket', function(done) {
     var btcAddr = 'mvBWJFv8Uc84YEyZKBm8HZQ7qrvmBiH7zR';
     var numEther = '0.017';
     var total = '0.0017';
     var id;
     btcSwap.createTicket(btcAddr, numEther, total,
-      function success(result) {
+      function success(tx) {},
+      function completed(tx, result) {
+        console.log('createTicket ticket: ', result)
         id = result.id;
-      },
-
-      function completed(result) {
-        console.log(result)
-        assert.strictEqual(result.id, id);
-        // assert.strictEqual(result.id, 1);
         // assert.strictEqual(result.amount, '170000000000000000');
-        // assert.strictEqual(result.price, '0.01');
-        // assert.strictEqual(result.total, '0.0017');
-        // assert.strictEqual(result.address, 'mvBWJFv8Uc84YEyZKBm8HZQ7qrvmBiH7zR');
-        // assert.strictEqual(result.expiry, 1);
-        // assert.strictEqual(result.claimer, '');
-        // assert.strictEqual(result.txHash, '');
+        assert.strictEqual(result.price, (total/numEther).toString());
+        assert.strictEqual(result.total, total);
+        assert.strictEqual(result.address, btcAddr);
+        assert.strictEqual(result.expiry, 2);
+        assert.strictEqual(result.claimer, '');
+        assert.strictEqual(result.txHash, '');
         done();
     });
   });

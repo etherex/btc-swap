@@ -127,7 +127,7 @@ var btcSwap = function(params) {
     var createFilter = this.contract.ticketEvent({ ticketId: 0 }, { fromBlock: 'latest', toBlock: 'latest'});
 
     if (this.debug)
-      console.log('watching for createTicket')
+      console.log('watching for createTicket');
 
     createFilter.watch(function(err, res) {
       try {
@@ -143,6 +143,10 @@ var btcSwap = function(params) {
 
         var eventArgs = res.args;
         var ticketId = eventArgs.rval.toNumber();
+
+        if (this.debug)
+          console.log('id of "created" ticket: ', ticketId);
+
         if (ticketId > 0) {
           setTimeout( function() {
             this.lookupTicket(ticketId, function(ticket) {
@@ -327,7 +331,7 @@ var btcSwap = function(params) {
           if (this.debug)
             console.log('reserveFilter result:', res);
 
-          var rval = res.args.rval.toNumber();
+          rval = res.args.rval.toNumber();
           if (rval === ticketId) {
             if (this.debug)
               console.log('Ticket reserved:', ticketId);
