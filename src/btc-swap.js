@@ -178,6 +178,11 @@ var btcSwap = function(params) {
   };
 
   this.claimTicket = function(ticketId, txHex, txHash, txIndex, merkleSibling, txBlockHash, success, completed, failure) {
+    txHash = '0x' + txHash;
+    merkleSibling = merkleSibling.map(function(sib) {
+      return '0x' + sib;
+    });
+
     var objParam = {gas: 3000000};
 
     var startTime = Date.now();
