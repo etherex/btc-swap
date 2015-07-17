@@ -41,7 +41,9 @@ describe('lookupTicket', function() {
 });
 
 describe('createTicket', function() {
-  it.skip('creates a ticket', function(done) {
+  this.timeout(0);
+
+  it('creates a ticket', function(done) {
     var btcAddr = 'mvBWJFv8Uc84YEyZKBm8HZQ7qrvmBiH7zR';
     var numEther = '0.017';
     var total = '0.0017';
@@ -70,7 +72,7 @@ describe('createTicket', function() {
 describe('reserveTicket', function() {
   this.timeout(0);
 
-  it('reserves a ticket', function(done) {
+  it.skip('reserves a ticket', function(done) {
     var ticketId = 1;
     var txHash = 'dd5a8f13c97c8b8d47329fa7bd487df24b7d3b7e855a65eb7fd51e8f94f7e482';
     var junkNonce = -2;

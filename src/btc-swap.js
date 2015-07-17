@@ -150,12 +150,12 @@ var btcSwap = function(params) {
                 console.log('lookup of created ticket: ', ticket);
 
               completed(pendingHash, ticket);
-            }, function(error) {
+            }.bind(this), function(error) {
               if (this.debug)
                 console.log('error lookup for created ticket:', error);
 
               failure('Could not lookup created ticket: ' + error);
-            });
+            }.bind(this));
           }.bind(this), 1000);
         }
         else {
