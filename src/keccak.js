@@ -39,11 +39,11 @@ function stringToBytes(str)
 
 function hexStringToBytes(str)
 {
-	var bytes = new Uint8Array(str.length>>>1);
+	var bytes = new Uint8Array(str.length >>> 1);
 	for (var i = 0; i != bytes.length; ++i)
 	{
-		bytes[i] = charToNibble(str.charCodeAt(i<<1 | 0)) << 4;
-		bytes[i] |= charToNibble(str.charCodeAt(i<<1 | 1));
+		bytes[i] = charToNibble(str.charCodeAt(i << 1 | 0)) << 4;
+		bytes[i] |= charToNibble(str.charCodeAt(i << 1 | 1));
 	}
 	return bytes;
 }
@@ -100,7 +100,7 @@ exports.wordsToHexString = wordsToHexString;
 exports.uint32ToHexString = uint32ToHexString;
 exports.toWords = toWords;
 
-var Keccak_f1600_RC = new Uint32Array([
+var KeccakF1600RC = new Uint32Array([
 	0x00000001, 0x00000000,
 	0x00008082, 0x00000000,
 	0x0000808a, 0x80000000,
@@ -127,68 +127,68 @@ var Keccak_f1600_RC = new Uint32Array([
 	0x80008008, 0x80000000
 ]);
 
-function keccak_f1600(outState, outOffset, outSize, inState)
+function keccakF1600(outState, outOffset, outSize, inState)
 {
 	// todo, handle big endian loads
-	var a00l = inState[0]|0;
-	var a00h = inState[1]|0;
-	var a01l = inState[2]|0;
-	var a01h = inState[3]|0;
-	var a02l = inState[4]|0;
-	var a02h = inState[5]|0;
-	var a03l = inState[6]|0;
-	var a03h = inState[7]|0;
-	var a04l = inState[8]|0;
-	var a04h = inState[9]|0;
-	var a05l = inState[10]|0;
-	var a05h = inState[11]|0;
-	var a06l = inState[12]|0;
-	var a06h = inState[13]|0;
-	var a07l = inState[14]|0;
-	var a07h = inState[15]|0;
-	var a08l = inState[16]|0;
-	var a08h = inState[17]|0;
-	var a09l = inState[18]|0;
-	var a09h = inState[19]|0;
-	var a10l = inState[20]|0;
-	var a10h = inState[21]|0;
-	var a11l = inState[22]|0;
-	var a11h = inState[23]|0;
-	var a12l = inState[24]|0;
-	var a12h = inState[25]|0;
-	var a13l = inState[26]|0;
-	var a13h = inState[27]|0;
-	var a14l = inState[28]|0;
-	var a14h = inState[29]|0;
-	var a15l = inState[30]|0;
-	var a15h = inState[31]|0;
-	var a16l = inState[32]|0;
-	var a16h = inState[33]|0;
-	var a17l = inState[34]|0;
-	var a17h = inState[35]|0;
-	var a18l = inState[36]|0;
-	var a18h = inState[37]|0;
-	var a19l = inState[38]|0;
-	var a19h = inState[39]|0;
-	var a20l = inState[40]|0;
-	var a20h = inState[41]|0;
-	var a21l = inState[42]|0;
-	var a21h = inState[43]|0;
-	var a22l = inState[44]|0;
-	var a22h = inState[45]|0;
-	var a23l = inState[46]|0;
-	var a23h = inState[47]|0;
-	var a24l = inState[48]|0;
-	var a24h = inState[49]|0;
+	var a00l = inState[0] | 0;
+	var a00h = inState[1] | 0;
+	var a01l = inState[2] | 0;
+	var a01h = inState[3] | 0;
+	var a02l = inState[4] | 0;
+	var a02h = inState[5] | 0;
+	var a03l = inState[6] | 0;
+	var a03h = inState[7] | 0;
+	var a04l = inState[8] | 0;
+	var a04h = inState[9] | 0;
+	var a05l = inState[10] | 0;
+	var a05h = inState[11] | 0;
+	var a06l = inState[12] | 0;
+	var a06h = inState[13] | 0;
+	var a07l = inState[14] | 0;
+	var a07h = inState[15] | 0;
+	var a08l = inState[16] | 0;
+	var a08h = inState[17] | 0;
+	var a09l = inState[18] | 0;
+	var a09h = inState[19] | 0;
+	var a10l = inState[20] | 0;
+	var a10h = inState[21] | 0;
+	var a11l = inState[22] | 0;
+	var a11h = inState[23] | 0;
+	var a12l = inState[24] | 0;
+	var a12h = inState[25] | 0;
+	var a13l = inState[26] | 0;
+	var a13h = inState[27] | 0;
+	var a14l = inState[28] | 0;
+	var a14h = inState[29] | 0;
+	var a15l = inState[30] | 0;
+	var a15h = inState[31] | 0;
+	var a16l = inState[32] | 0;
+	var a16h = inState[33] | 0;
+	var a17l = inState[34] | 0;
+	var a17h = inState[35] | 0;
+	var a18l = inState[36] | 0;
+	var a18h = inState[37] | 0;
+	var a19l = inState[38] | 0;
+	var a19h = inState[39] | 0;
+	var a20l = inState[40] | 0;
+	var a20h = inState[41] | 0;
+	var a21l = inState[42] | 0;
+	var a21h = inState[43] | 0;
+	var a22l = inState[44] | 0;
+	var a22h = inState[45] | 0;
+	var a23l = inState[46] | 0;
+	var a23h = inState[47] | 0;
+	var a24l = inState[48] | 0;
+	var a24h = inState[49] | 0;
 	var b00l, b00h, b01l, b01h, b02l, b02h, b03l, b03h, b04l, b04h;
 	var b05l, b05h, b06l, b06h, b07l, b07h, b08l, b08h, b09l, b09h;
 	var b10l, b10h, b11l, b11h, b12l, b12h, b13l, b13h, b14l, b14h;
 	var b15l, b15h, b16l, b16h, b17l, b17h, b18l, b18h, b19l, b19h;
 	var b20l, b20h, b21l, b21h, b22l, b22h, b23l, b23h, b24l, b24h;
-	var tl, nl;
-	var th, nh;
+	var tl;
+	var th;
 
-	for (var r = 0; r < 48; r = (r+2)|0)
+	for (var r = 0; r < 48; r = (r + 2) | 0)
 	{
 		// Theta
 		b00l = a00l ^ a05l ^ a10l ^ a15l ^ a20l;
@@ -367,65 +367,65 @@ function keccak_f1600(outState, outOffset, outSize, inState)
 		a24h = b24h ^ ~b20h & b21h;
 
 		// Iota
-		a00l ^= Keccak_f1600_RC[r|0];
-		a00h ^= Keccak_f1600_RC[r|1];
+		a00l ^= KeccakF1600RC[r | 0];
+		a00h ^= KeccakF1600RC[r | 1];
 	}
 
 	// todo, handle big-endian stores
-	outState[outOffset|0] = a00l;
-	outState[outOffset|1] = a00h;
-	outState[outOffset|2] = a01l;
-	outState[outOffset|3] = a01h;
-	outState[outOffset|4] = a02l;
-	outState[outOffset|5] = a02h;
-	outState[outOffset|6] = a03l;
-	outState[outOffset|7] = a03h;
+	outState[outOffset | 0] = a00l;
+	outState[outOffset | 1] = a00h;
+	outState[outOffset | 2] = a01l;
+	outState[outOffset | 3] = a01h;
+	outState[outOffset | 4] = a02l;
+	outState[outOffset | 5] = a02h;
+	outState[outOffset | 6] = a03l;
+	outState[outOffset | 7] = a03h;
 	if (outSize == 8)
 		return;
-	outState[outOffset|8] = a04l;
-	outState[outOffset|9] = a04h;
-	outState[outOffset|10] = a05l;
-	outState[outOffset|11] = a05h;
-	outState[outOffset|12] = a06l;
-	outState[outOffset|13] = a06h;
-	outState[outOffset|14] = a07l;
-	outState[outOffset|15] = a07h;
+	outState[outOffset | 8] = a04l;
+	outState[outOffset | 9] = a04h;
+	outState[outOffset | 10] = a05l;
+	outState[outOffset | 11] = a05h;
+	outState[outOffset | 12] = a06l;
+	outState[outOffset | 13] = a06h;
+	outState[outOffset | 14] = a07l;
+	outState[outOffset | 15] = a07h;
 	if (outSize == 16)
 		return;
-	outState[outOffset|16] = a08l;
-	outState[outOffset|17] = a08h;
-	outState[outOffset|18] = a09l;
-	outState[outOffset|19] = a09h;
-	outState[outOffset|20] = a10l;
-	outState[outOffset|21] = a10h;
-	outState[outOffset|22] = a11l;
-	outState[outOffset|23] = a11h;
-	outState[outOffset|24] = a12l;
-	outState[outOffset|25] = a12h;
-	outState[outOffset|26] = a13l;
-	outState[outOffset|27] = a13h;
-	outState[outOffset|28] = a14l;
-	outState[outOffset|29] = a14h;
-	outState[outOffset|30] = a15l;
-	outState[outOffset|31] = a15h;
-	outState[outOffset|32] = a16l;
-	outState[outOffset|33] = a16h;
-	outState[outOffset|34] = a17l;
-	outState[outOffset|35] = a17h;
-	outState[outOffset|36] = a18l;
-	outState[outOffset|37] = a18h;
-	outState[outOffset|38] = a19l;
-	outState[outOffset|39] = a19h;
-	outState[outOffset|40] = a20l;
-	outState[outOffset|41] = a20h;
-	outState[outOffset|42] = a21l;
-	outState[outOffset|43] = a21h;
-	outState[outOffset|44] = a22l;
-	outState[outOffset|45] = a22h;
-	outState[outOffset|46] = a23l;
-	outState[outOffset|47] = a23h;
-	outState[outOffset|48] = a24l;
-	outState[outOffset|49] = a24h;
+	outState[outOffset | 16] = a08l;
+	outState[outOffset | 17] = a08h;
+	outState[outOffset | 18] = a09l;
+	outState[outOffset | 19] = a09h;
+	outState[outOffset | 20] = a10l;
+	outState[outOffset | 21] = a10h;
+	outState[outOffset | 22] = a11l;
+	outState[outOffset | 23] = a11h;
+	outState[outOffset | 24] = a12l;
+	outState[outOffset | 25] = a12h;
+	outState[outOffset | 26] = a13l;
+	outState[outOffset | 27] = a13h;
+	outState[outOffset | 28] = a14l;
+	outState[outOffset | 29] = a14h;
+	outState[outOffset | 30] = a15l;
+	outState[outOffset | 31] = a15h;
+	outState[outOffset | 32] = a16l;
+	outState[outOffset | 33] = a16h;
+	outState[outOffset | 34] = a17l;
+	outState[outOffset | 35] = a17h;
+	outState[outOffset | 36] = a18l;
+	outState[outOffset | 37] = a18h;
+	outState[outOffset | 38] = a19l;
+	outState[outOffset | 39] = a19h;
+	outState[outOffset | 40] = a20l;
+	outState[outOffset | 41] = a20h;
+	outState[outOffset | 42] = a21l;
+	outState[outOffset | 43] = a21h;
+	outState[outOffset | 44] = a22l;
+	outState[outOffset | 45] = a22h;
+	outState[outOffset | 46] = a23l;
+	outState[outOffset | 47] = a23h;
+	outState[outOffset | 48] = a24l;
+	outState[outOffset | 49] = a24h;
 }
 
 var Keccak = function()
@@ -441,7 +441,7 @@ var Keccak = function()
 			stateWords[i] = 0;
 		}
 
-		var r = 200 - oSize*2;
+		var r = 200 - oSize * 2;
 		var iLength = iBytes.length;
 		var iOffset = 0;
 		for ( ; ;)
@@ -456,12 +456,12 @@ var Keccak = function()
 				break;
 			iLength -= len;
 
-			keccak_f1600(stateWords, 0, 50, stateWords);
+			keccakF1600(stateWords, 0, 50, stateWords);
 		}
 
 		stateBytes[iLength] ^= 1;
-		stateBytes[r-1] ^= 0x80;
-		keccak_f1600(stateWords, 0, 50, stateWords);
+		stateBytes[r - 1] ^= 0x80;
+		keccakF1600(stateWords, 0, 50, stateWords);
 		return stateBytes.subarray(0, oSize);
 	};
 
@@ -472,7 +472,7 @@ var Keccak = function()
 			stateWords[i] = 0;
 		}
 
-		var r = 50 - oLength*2;
+		var r = 50 - oLength * 2;
 		for (; ; )
 		{
 			var len = iLength < r ? iLength : r;
@@ -485,12 +485,12 @@ var Keccak = function()
 				break;
 			iLength -= len;
 
-			keccak_f1600(stateWords, 0, 50, stateWords);
+			keccakF1600(stateWords, 0, 50, stateWords);
 		}
 
-		stateBytes[iLength<<2] ^= 1;
-		stateBytes[(r<<2) - 1] ^= 0x80;
-		keccak_f1600(oWords, oOffset, oLength, stateWords);
+		stateBytes[iLength << 2] ^= 1;
+		stateBytes[(r << 2) - 1] ^= 0x80;
+		keccakF1600(oWords, oOffset, oLength, stateWords);
 	};
 };
 
@@ -504,4 +504,4 @@ module.exports = {
 	wordsToHexString: wordsToHexString,
 	uint32ToHexString: uint32ToHexString,
 	toWords: toWords
-}
+};

@@ -12,8 +12,37 @@ module.exports = function(grunt) {
           "lib/debugAbi.js": "src/debugAbi.js"
         }
       }
+    },
+    eslint: {
+      options: {
+        configFile: '.eslintrc'
+      },
+      target: ['Gruntfile.js', 'src/*.js']
+    },
+    mochacli: {
+      options: {
+        bail: true
+      },
+      all: ['test/*.js']
+    },
+    watch: {
+      src: {
+        files: ["src/*.js"],
+        tasks: ["eslint", "babel"],
+        options: {
+          spawn: false
+        }
+      }
     }
   });
+
   grunt.loadNpmTasks('grunt-babel');
-  grunt.registerTask("default", ["babel"]);
+  grunt.loadNpmTasks('grunt-eslint');
+  grunt.loadNpmTasks('grunt-mocha-cli');
+  grunt.loadNpmTasks('grunt-contrib-watch');
+
+  grunt.registerTask("lint", ["eslint"]);
+  grunt.registerTask("build", ["eslint", "babel"]);
+  grunt.registerTask('test', ["build", 'mochacli']);
+  grunt.registerTask("default", ["build", "watch:src"]);
 };

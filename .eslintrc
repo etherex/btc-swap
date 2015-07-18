@@ -9,6 +9,7 @@
   },
   "rules": {
     "curly": 0,
+    "eqeqeq": 0,
     "quotes": 0,
     "strict": 0
   }
