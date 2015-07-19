@@ -256,7 +256,7 @@ var btcSwap = function(params) {
           if (eventArgs.rval.toNumber() === ticketId) {
             if (this.debug)
               console.log('Ticket claimed:', ticketId);
-            completed(res);
+            completed(ticketId);
           }
           else {
             failure('Claim ticket error: ' + rval);
