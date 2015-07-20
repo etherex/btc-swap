@@ -80,7 +80,7 @@ var btcSwap = function(params) {
         console.log("BTC address hex:", addrHex);
     }
     catch (err) {
-      failure(new Error(btcAddress + ' is an invalid Bitcoin address: ' + err.message));
+      failure(btcAddress + ' is an invalid Bitcoin address: ' + err.message);
       return;
     }
     var numWei = web3.toWei(numEther, 'ether');
@@ -101,8 +101,7 @@ var btcSwap = function(params) {
       if (rval <= 0) {
         if (this.debug)
           console.log('Return value:', rval);
-        var msg = 'Invalid ticket, it will not be created.';
-        failure(msg);
+        failure('Invalid ticket, it will not be created.');
         return;
       }
 
@@ -206,31 +205,31 @@ var btcSwap = function(params) {
             console.log('claimTicket call looks good, now sending transaction...');
           break;  // the only result that does not return;
         case CLAIM_FAIL_INVALID_TICKET:  // one way to get here is Claim, mine, then Claim without refreshing the UI
-          failure('Invalid Ticket ID' + ' Ticket does not exist or already claimed');
+          failure('Invalid Ticket ID. Ticket does not exist or is already claimed.');
           return;
         case CLAIM_FAIL_UNRESERVED:  // one way to get here is Reserve, let it expire, then Claim without refreshing the UI
-          failure('Ticket is unreserved' + ' Reserve the ticket and try again');
+          failure('Ticket is unreserved.  Reserve the ticket and try again');
           return;
         case CLAIM_FAIL_CLAIMER:  // one way to get here is change web3.eth.defaultAccount
-          failure('Someone else has reserved the ticket' + ' You can only claim tickets that you have reserved');
+          failure('Someone else has reserved the ticket. You can only claim tickets that you have reserved');
           return;
         case CLAIM_FAIL_TX_HASH:  // should not happen since UI prevents it
           failure('You need to use the transaction used in the reservation', '');
           return;
         case CLAIM_FAIL_INSUFFICIENT_SATOSHI:  // should not happen since UI prevents it
-          failure('Bitcoin transaction did not send enough bitcoins' + ' Number of bitcoins must meet ticket\'s total price');
+          failure('Bitcoin transaction did not send enough bitcoins. The amount of bitcoins must meet the ticket\'s total.');
           return;
         case CLAIM_FAIL_PROOF:
-          failure('Bitcoin transaction needs at least 6 confirmations' + ' Wait and try again');
+          failure('Bitcoin transaction needs at least 6 confirmations. Wait and try again later.');
           return;
         case CLAIM_FAIL_WRONG_BTC_ADDR:  // should not happen since UI prevents it
-          failure('Bitcoin transaction paid wrong BTC address' + ' Bitcoins must be sent to the address specified by the ticket');
+          failure('Bitcoin transaction paid wrong BTC address. Bitcoins must be sent to the address specified by the ticket.');
           return;
         case CLAIM_FAIL_TX_ENCODING:
-          failure('Bitcoin transaction incorrectly constructed' + ' Use btcToEther tool to construct bitcoin transaction');
+          failure('Bitcoin transaction incorrectly constructed. Use btcToEther tool to construct bitcoin transaction.');
           return;
         default:
-          failure('Unexpected error ' + rval);
+          failure('Unexpected error: ' + String(rval));
           return;
       }
 
@@ -308,10 +307,10 @@ var btcSwap = function(params) {
             console.log('reserveTicket call looks good, now sending transaction...');
           break;  // the only result that does not return
         case RESERVE_FAIL_UNRESERVABLE:
-          failure('Ticket already reserved');
+          failure('Ticket already reserved.');
           return;
         case RESERVE_FAIL_POW:
-          failure('Proof of Work is invalid');
+          failure('Proof of Work is invalid.');
           return;
         default:
           if (this.debug)
@@ -341,11 +340,13 @@ var btcSwap = function(params) {
           if (rval === ticketId) {
             if (this.debug)
               console.log('Ticket reserved:', ticketId);
-            this.lookupTicket(ticketId, function(ticket) {
-              completed(ticket);
-            }, function(lookupError) {
-              failure('Could not lookup reserved ticket: ' + lookupError);
-            });
+            setTimeout( function() {
+              this.lookupTicket(ticketId, function(ticket) {
+                completed(ticket);
+              }, function(lookupError) {
+                failure('Could not lookup reserved ticket: ' + lookupError);
+              });
+            }.bind(this), 1000);
           }
           else {
             if (this.debug)
@@ -477,7 +478,7 @@ var btcSwap = function(params) {
     var strHash;
 
     if (this.debug)
-      console.log('@@@ bnSrc: ', bnSrc.toString(16));
+      console.log('PoW source: ', bnSrc.toString(16));
 
     src = ku.hexStringToBytes(bnSrc.toString(16));
     src = new Uint32Array(src.buffer);
@@ -490,101 +491,81 @@ var btcSwap = function(params) {
 
     var isPowValid = bnHash.lt(bnTarget);
     if (this.debug)
-      console.log('@@@ isPowValid: ', isPowValid, ' pow: ', bnHash.toString(16), ' target: ', bnTarget.toString(16));
+      console.log('isPowValid: ', isPowValid, ' pow: ', bnHash.toString(16), ' target: ', bnTarget.toString(16));
 
     if (isPowValid) {
-      success('Proof of Work valid');
+      success('Proof of Work valid.');
     }
     else {
-      failure('Proof of Work invalid');
+      failure('Proof of Work invalid.');
     }
   };
 
   this.computePoW = function(ticketId, btcTxHash, success, failure) {
     try {
-      // var powPromise = new Promise(function(resolve, reject) {
-        if (this.debug)
-          console.log('@@@ computePow txhash: ', btcTxHash);
+      if (this.debug)
+        console.log('computePow txhash: ', btcTxHash);
 
-        var hexTicketId = new BigNumber(ticketId).toString(16);
-        var padLen = 8 - hexTicketId.length;
-        var leadZerosForTicketId = Array(padLen + 1).join('0');
+      var hexTicketId = new BigNumber(ticketId).toString(16);
+      var padLen = 8 - hexTicketId.length;
+      var leadZerosForTicketId = Array(padLen + 1).join('0');
 
-        var bnSrc = new BigNumber('0x' + btcTxHash + leadZerosForTicketId + hexTicketId + "0000000000000000");
-        var src;
-        var bnHash;
-        var strHash;
+      var bnSrc = new BigNumber('0x' + btcTxHash + leadZerosForTicketId + hexTicketId + "0000000000000000");
+      var src;
+      var bnHash;
+      var strHash;
 
-        if (this.debug)
-          console.log('@@@ bnSrc: ', bnSrc.toString(16));
+      if (this.debug)
+        console.log('PoW source: ', bnSrc.toString(16));
+
+      src = ku.hexStringToBytes(bnSrc.toString(16));
+      src = new Uint32Array(src.buffer);
+      var srcLen = src.length;
+      var dst = new Uint32Array(8);
+      kecc.digestWords(dst, 0, 8, src, 0, srcLen);
+
+      strHash = ku.wordsToHexString(dst);
+      bnHash = new BigNumber('0x' + strHash);
+
+
+      var startTime = new Date().getTime();
+      if (this.debug)
+        console.log("startTime: ", startTime);
+
+      var start = 0;
+
+      var tryPoW = function(i) {
+        bnSrc = bnSrc.add(1);
 
         src = ku.hexStringToBytes(bnSrc.toString(16));
         src = new Uint32Array(src.buffer);
-        var srcLen = src.length;
-        var dst = new Uint32Array(8);
         kecc.digestWords(dst, 0, 8, src, 0, srcLen);
 
         strHash = ku.wordsToHexString(dst);
         bnHash = new BigNumber('0x' + strHash);
-
-
-        var startTime = new Date().getTime();
         if (this.debug)
-          console.log("startTime: ", startTime);
+          console.log("PASS", i, strHash, "DIFF", bnTarget.minus(bnHash).toString());
 
-        var start = 0;
-        var tryPoW = function(i) {
-          bnSrc = bnSrc.add(1);
+        if (i >= 1000)
+          failure("PoW failed.");
 
-          src = ku.hexStringToBytes(bnSrc.toString(16));
-          src = new Uint32Array(src.buffer);
-          kecc.digestWords(dst, 0, 8, src, 0, srcLen);
+        i += 1;
+        if (bnHash.gte(bnTarget) && i < 1000)
+          setTimeout(tryPoW, 10, i);
+        else {
+          success(i);
 
-          strHash = ku.wordsToHexString(dst);
-          bnHash = new BigNumber('0x' + strHash);
-          if (this.debug)
-            console.log("PASS", i, strHash, "DIFF", bnTarget.minus(bnHash).toString());
+          if (this.debug) {
+            console.log("endTime: ", new Date().getTime());
+            console.log("duration: ", (new Date().getTime() - startTime) / 1000.0);
 
-          if (i >= 1000)
-            failure("PoW failed.");
-            // reject("PoW failed.");
-
-          i += 1;
-          if (bnHash.gte(bnTarget) && i < 1000)
-            setTimeout(tryPoW, 10, i);
-          else {
-            success(i);
-
-            if (this.debug) {
-              console.log("endTime: ", new Date().getTime());
-              console.log("duration: ", (new Date().getTime() - startTime) / 1000.0);
-
-              console.log('@@@@ nonce: ', i);
-              console.log('@@@ strHash: ', strHash);
-            }
+            console.log('@@@@ nonce: ', i);
+            console.log('@@@ strHash: ', strHash);
           }
-            // resolve(i);
-        }.bind(this);
+        }
+      }.bind(this);
 
-        tryPoW(start);
-
-        // var i = 0;
-        // while (bnHash.gte(bnTarget) && i < 100000000) {
-        //   setTimeout(tryPoW(i), 1);
-        //   i += 1;
-        // }
-
-        // if (i === 100000000)
-        //   reject("PoW failed.");
-
-        // resolve(i);
-      // }.bind(this));
-
-      // powPromise.then(function (nonce) {
-      //     success(nonce);
-      // }, function (e) {
-      //     failure(String(e));
-      // });
+      tryPoW(start);
     }
     catch(e) {
       failure(e);
@@ -608,21 +589,21 @@ var btcSwap = function(params) {
 
     dbgEvent.watch(function(err, res) {
       if (err) {
-        console.log('@@@ dbgEvent err: ', err);
+        console.log('Debug Event error: ', err);
         return;
       }
 
-      console.log('@@@ dbgEvent res: ', res);
+      console.log('Debug Event result: ', res);
     });
 
 
     txhEvent.watch(function(err, res) {
       if (err) {
-        console.log('@@@ txhEvent err: ', err);
+        console.log('txHash Event error: ', err);
         return;
       }
 
-      console.log('@@@ txhEvent res: ', res);
+      console.log('txHash Event result: ', res);
     });
   };
 
