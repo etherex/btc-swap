@@ -1,0 +1,368 @@
+# btc-swap.se - Ethereum Bitcoin Swap
+#
+# Copyright (c) 2014-2015 Joseph Chow & EtherEx
+#
+# This software may be modified and distributed under the terms
+# of the MIT license.  See the LICENSE file for details.
+
+# TODO
+# claimer 20bytes, claimExpiry 2bytes
+# claimTxHash are 32bytes each
+# btcAddr 20 bytes, numWei 10bytes, double-check weiPerSatoshi 2bytes
+
+extern relayContract: [verifyTx:[int256,int256,int256[],int256]:int256]
+
+# claimExpiry 0 means ticket doesn't exist
+data ticket[2**64](btcAddr, numWei, weiPerSatoshi, claimer, claimExpiry, claimTxHash)
+
+# ticket and m_keccak assume ticketId is 64bit int
+data lastTicketId  # last ticket id.  first valid id is 1
+
+data trustedBtcRelay
+
+# Constants
+macro POW_TARGET: 2**245
+macro ONE_HOUR_IN_SECS: 60*60
+macro ONLY_RESERVER_CLAIM_SECS: 2 * ONE_HOUR_IN_SECS
+macro ANYONE_CLAIM_SECS: 2 * ONE_HOUR_IN_SECS
+macro TOTAL_RESERVED_SECS: ONLY_RESERVER_CLAIM_SECS + ANYONE_CLAIM_SECS
+macro FRESH_TICKET_EXPIRY: 1
+macro TICKET_FIELDS: 7
+
+macro RESERVE_FAIL_UNRESERVABLE: -10
+macro RESERVE_FAIL_POW: -11
+macro CLAIM_FAIL_INVALID_TICKET: -20
+macro CLAIM_FAIL_UNRESERVED: -21
+macro CLAIM_FAIL_CLAIMER: -22
+macro CLAIM_FAIL_TX_HASH: -23
+macro CLAIM_FAIL_INSUFFICIENT_SATOSHI: -24
+macro CLAIM_FAIL_PROOF: -25
+macro CLAIM_FAIL_WRONG_BTC_ADDR: -26
+macro CLAIM_FAIL_TX_ENCODING: -27
+
+# Events
+event ticketEvent(ticketId:indexed, rval)
+event claimSuccess(btcAddr, numSatoshi, ethAddr, satoshiIn2ndOutput)
+
+# Macros
+
+# ticket exists and is reservable.
+# also means that ticket is NOT claimable since ticket needs to be reserved first
+macro m_ticketAvailable($ticketId):
+    with $claimExpiry = self.ticket[$ticketId].claimExpiry:
+        $claimExpiry > 0 && block.timestamp > $claimExpiry  # claimExpiry 0 means ticket doesn't exist
+
+macro m_deleteTicket($ticketId):
+    self.ticket[$ticketId].btcAddr = 0
+    self.ticket[$ticketId].numWei = 0
+    self.ticket[$ticketId].weiPerSatoshi = 0
+    self.ticket[$ticketId].claimer = 0
+    self.ticket[$ticketId].claimExpiry = 0
+    self.ticket[$ticketId].claimTxHash = 0
+
+
+macro getEthAddr($indexStart, $inStr, $size, $offset):
+    $endIndex = ($indexStart*2) + $offset + ($size * 2)
+
+    $result = 0
+    $exponent = 0
+    $j = ($indexStart*2) + $offset
+    while $j < $endIndex:
+        $char = getch($inStr, $endIndex-1-$exponent)
+        # log($char)
+
+        if ($char >= 97 && $char <= 102):  # only handles lowercase a-f
+            $numeric = $char - 87
+        else:
+            $numeric = $char - 48
+        # log($numeric)
+
+        $result += $numeric * 16^$exponent
+        # log(result)
+
+        $j += 1
+        $exponent += 1
+
+    $result
+
+macro m_isValidPow($txHash, $ticketId, $powNonce):
+    lt(m_keccak($txHash, $ticketId, $powNonce), POW_TARGET)  # lt is required for unsigned comparison
+
+# ticketId and nonce are 8bytes each
+macro m_keccak($txHash, $ticketId, $powNonce):
+    with $x = ~alloc(48):
+        ~mstore($x, $txHash)
+        ~mstore($x + 32, $ticketId*2**192)
+        ~mstore($x + 40, $powNonce*2**192)
+        sha3($x, chars=48)
+
+# TODO disable testingOnly methods
+# def testingOnlyReserveLatestTicket(txHash):
+#     return(self.reserveTicket(value=msg.value, self.lastTicketId, txHash))
+#
+# def testingOnlyClaimTicketLatestTicket(txStr:str, txHash, txIndex, sibling:arr, txBlockHash):
+#     return(self.claimTicket(self.lastTicketId, txStr, txHash, txIndex, sibling, txBlockHash))
+
+def ttClaimHash():
+    return(self.ticket[self.lastTicketId].claimTxHash)
+
+def ttLastTid():
+    return(self.lastTicketId)
+
+# trustedRelayContract is the address of the trusted btcrelay contract
+def setTrustedBtcRelay(trustedRelayContract):
+    if trustedRelayContract and !self.trustedBtcRelay:
+        self.trustedBtcRelay = trustedRelayContract
+        return(1)
+    return(0)
+
+def createTicket(btcAddr, numWei, weiPerSatoshi):
+    if msg.value < numWei || numWei == 0:
+        send(msg.sender, msg.value)
+        log(type=ticketEvent, 0, 0)
+        return(0)
+
+    self.lastTicketId += 1
+    # TODO use var for lastTicketId ?
+    self.ticket[self.lastTicketId].btcAddr = btcAddr
+    self.ticket[self.lastTicketId].numWei = numWei
+    self.ticket[self.lastTicketId].weiPerSatoshi = weiPerSatoshi
+    self.ticket[self.lastTicketId].claimExpiry = FRESH_TICKET_EXPIRY # allow to be reserved; see m_ticketAvailable()
+
+    log(type=ticketEvent, 0, self.lastTicketId)
+    return(self.lastTicketId)
+
+
+def lookupTicket(ticketId):
+    if (ticketId > self.lastTicketId || ticketId <= 0):
+        return([]:arr)
+
+    return([self.ticket[ticketId].btcAddr, self.ticket[ticketId].numWei, self.ticket[ticketId].weiPerSatoshi, self.ticket[ticketId].claimExpiry, self.ticket[ticketId].claimer, self.ticket[ticketId].claimTxHash]:arr)
+
+def reserveTicket(ticketId, txHash, nonce):
+    if !m_ticketAvailable(ticketId):
+        log(type=ticketEvent, ticketId, RESERVE_FAIL_UNRESERVABLE)
+        return(RESERVE_FAIL_UNRESERVABLE)
+
+    if m_isValidPow(txHash, ticketId, nonce):  # ensure args are in correct order: txHash then ticketId
+        self.ticket[ticketId].claimer = msg.sender
+        self.ticket[ticketId].claimExpiry = block.timestamp + TOTAL_RESERVED_SECS
+        self.ticket[ticketId].claimTxHash = txHash
+        log(type=ticketEvent, ticketId, ticketId)
+        return(ticketId)
+    else:
+        log(type=ticketEvent, ticketId, RESERVE_FAIL_POW)
+        return(RESERVE_FAIL_POW)
+
+# A ticket can only be claimed once, and thus the Bitcoin tx should send enough
+# bitcoins so that all the ether can be claimed
+def claimTicket(ticketId, txStr:str, txHash, txIndex, sibling:arr, txBlockHash):
+    claimExpiry = self.ticket[ticketId].claimExpiry
+    if (claimExpiry == 0):  # claimExpiry 0 means ticket doesn't exist
+        log(type=ticketEvent, ticketId, CLAIM_FAIL_INVALID_TICKET)
+        return(CLAIM_FAIL_INVALID_TICKET)
+
+    if (claimExpiry == FRESH_TICKET_EXPIRY || block.timestamp > claimExpiry):
+        log(type=ticketEvent, ticketId, CLAIM_FAIL_UNRESERVED)
+        return(CLAIM_FAIL_UNRESERVED)
+
+    if (block.timestamp <= claimExpiry - ANYONE_CLAIM_SECS && msg.sender != self.ticket[ticketId].claimer):
+        log(type=ticketEvent, ticketId, CLAIM_FAIL_CLAIMER)
+        return(CLAIM_FAIL_CLAIMER)
+
+    claimerAddr = msg.sender
+
+    if (txHash != self.ticket[ticketId].claimTxHash):
+        log(type=ticketEvent, ticketId, CLAIM_FAIL_TX_HASH)
+        return(CLAIM_FAIL_TX_HASH)
+
+    outputData = self.getFirst2Outputs(txStr, outitems=4)
+
+    if outputData == 0:
+        log(type=ticketEvent, ticketId, CLAIM_FAIL_TX_ENCODING)
+        return(CLAIM_FAIL_TX_ENCODING)
+
+    numSatoshi = outputData[0]
+    weiBuyable = numSatoshi * self.ticket[ticketId].weiPerSatoshi
+    if weiBuyable < self.ticket[ticketId].numWei:
+        log(type=ticketEvent, ticketId, CLAIM_FAIL_INSUFFICIENT_SATOSHI)
+        return(CLAIM_FAIL_INSUFFICIENT_SATOSHI)
+    weiBuyable = self.ticket[ticketId].numWei
+
+    indexScriptOne = outputData[1]
+
+    # TODO strictly compare the script because an attacker may have a script that mentions
+    # our BTC address, but the BTC is not spendable by our private key (only spendable by attacker's key)
+    # btcWasSentToMe = compareScriptWithAddr(indexScriptOne, txStr, self.btcAcceptAddr)
+    addrBtcWasSentTo = getEthAddr(indexScriptOne, txStr, 20, 6)
+
+    if addrBtcWasSentTo != self.ticket[ticketId].btcAddr:
+        log(type=ticketEvent, ticketId, CLAIM_FAIL_WRONG_BTC_ADDR)
+        return(CLAIM_FAIL_WRONG_BTC_ADDR)
+
+
+    if self.trustedBtcRelay.verifyTx(txHash, txIndex, sibling, txBlockHash):
+
+        satoshiIn2ndOutput = outputData[2]
+
+        indexScriptTwo = outputData[3]
+        ethAddr = getEthAddr(indexScriptTwo, txStr, 20, 6)
+
+        encodedFee = (satoshiIn2ndOutput % 10000)  # encodedFee of 1234 means 12.34%
+        feeToClaimer = weiBuyable * encodedFee / 10000
+
+        weiToClaimer = feeToClaimer
+
+        res1 = send(claimerAddr, weiToClaimer)
+        res2 = send(ethAddr, weiBuyable - feeToClaimer)
+
+        m_deleteTicket(ticketId)
+
+        log(type=ticketEvent, ticketId, ticketId)
+
+        # TODO for testing only; remove when deploying
+        log(type=claimSuccess, addrBtcWasSentTo, numSatoshi, ethAddr, satoshiIn2ndOutput)
+
+        return(ticketId)
+    else:
+        log(type=ticketEvent, ticketId, CLAIM_FAIL_PROOF)
+        return(CLAIM_FAIL_PROOF)
+
+# all tickets except those that have been claimed
+def getOpenTickets(startTicketId, endTicketId):
+    if endTicketId > self.lastTicketId:
+        endTicketId = self.lastTicketId
+
+    maxSize = (endTicketId - startTicketId + 1) * TICKET_FIELDS
+    ticketArr = array(maxSize)
+
+    j = 0
+    i = startTicketId
+    while i <= endTicketId:
+        if self.ticket[i].claimExpiry:
+            ticketArr[j]   = i
+            ticketArr[j+1] = self.ticket[i].btcAddr
+            ticketArr[j+2] = self.ticket[i].numWei
+            ticketArr[j+3] = self.ticket[i].weiPerSatoshi
+            ticketArr[j+4] = self.ticket[i].claimExpiry
+            ticketArr[j+5] = self.ticket[i].claimer
+            ticketArr[j+6] = self.ticket[i].claimTxHash
+            j += TICKET_FIELDS
+
+        i += 1
+
+    shrink(ticketArr, j)
+    return(ticketArr:arr)
+
+
+# Optimized version of btcTx for retrieving
+# the first 2 outputs of a Bitcoin transaction.
+
+# return 0 if tx has less than 2 outputs
+# or other error, otherwise return array
+# of [out1stSatoshis, out1stScriptIndex, out2ndScriptIndex]
+def getFirst2Outputs(txStr:str):
+    cursor = 4  # skip version
+
+    numIns = parseVarInt(txStr, cursor)
+
+    i = 0
+    while i < numIns:
+        cursor += 36  # skip prevTxId (32) and outputIndex (4)
+
+        scriptSize = parseVarInt(txStr, cursor)
+        cursor += scriptSize + 4  # skip input script and seqNum (4)
+
+        i += 1
+
+    numOuts = parseVarInt(txStr, cursor)
+    if numOuts < 2:
+        return
+
+    # 1st output
+    tmpArr = getUInt64LE(txStr, cursor)
+    cursor += 8
+    out1stSatoshis = tmpArr[1]
+
+    scriptSize = parseVarInt(txStr, cursor)
+
+    if scriptSize == 0:
+        return
+
+    out1stScriptIndex = cursor
+
+    # 2nd output
+    cursor += scriptSize
+
+    tmpArr = getUInt64LE(txStr, cursor)
+    cursor += 8
+    out2ndSatoshis = tmpArr[1]
+
+    scriptSize = parseVarInt(txStr, cursor)
+
+    if scriptSize == 0:
+        return
+
+    out2ndScriptIndex = cursor
+
+    return([out1stSatoshis, out1stScriptIndex, out2ndSatoshis, out2ndScriptIndex], items=4)
+
+# only handles lowercase a-f
+def getUnsignedBitsLE(txStr:str, pos, bits):
+    size = bits / 4
+    offset = pos * 2
+    endIndex = offset + size
+
+    result = 0
+    j = 0
+    while j < size:
+        # "01 23 45" want it to read "10 32 54"
+        if j % 2 == 0:
+            i = j + 1
+        else:
+            i = j - 1
+
+        char = getch(txStr, i+offset)
+        # log(char)
+        if (char >= 97 && char <= 102):  # only handles lowercase a-f
+            numeric = char - 87
+        else:
+            numeric = char - 48
+
+        # log(numeric)
+
+        result += numeric * 16^j
+        # log(result)
+
+        j += 1
+
+    # need to return size/2 since we don't know the next offset with getVarintNum
+    return([size/2, result], items=2)
+
+# read the VarInt and advance the cursor
+macro parseVarInt($txStr, $cursor):
+    $arr = getVarintNum($txStr, $cursor)
+    $cursor += $arr[0]
+    $arr[1]
+
+macro getVarintNum($txStr, $pos):
+    $ret = getUInt8($txStr, $pos)
+    if $ret == 0xfd:
+        $ret = getUInt16LE($txStr, $pos)
+    elif $ret == 0xfe:
+        $ret = getUInt32LE($txStr, $pos)
+    elif $ret == 0xff:
+        $ret = getUInt64LE($txStr, $pos)
+    $ret
+
+macro getUInt8($txStr, $pos):
+    self.getUnsignedBitsLE($txStr, $pos, 8, outitems=2)
+
+macro getUInt16LE($txStr, $pos):
+    self.getUnsignedBitsLE($txStr, $pos, 16, outitems=2)
+
+macro getUInt32LE($txStr, $pos):
+    self.getUnsignedBitsLE($txStr, $pos, 32, outitems=2)
+
+macro getUInt64LE($txStr, $pos):
+    self.getUnsignedBitsLE($txStr, $pos, 64, outitems=2)

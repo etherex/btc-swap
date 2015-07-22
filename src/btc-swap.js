@@ -1,18 +1,20 @@
 var BigNumber = require('bignumber.js');
 var bitcoin = require('bitcoinjs-lib');
 var btcproof = require('bitcoin-proof');
+var Blockchain = require('cb-blockr');
 var web3 = require('web3');
 var abi = require('./abi');
 var debugAbi = require('./debugAbi');
 
 var ku = require('./keccak.js');
-var bnTarget = new BigNumber(2).pow(234);
+var bnTarget = new BigNumber(2).pow(245);
 var kecc = new ku.Keccak();
 
 var TWO_POW_256 = new BigNumber(2).pow(256);
 
 var WEI_PER_ETHER = new BigNumber(10).pow(18);
 var SATOSHI_PER_BTC = new BigNumber(10).pow(8);
+var SATOSHIFEE = 30000;
 
 var TICKET_FIELDS = 7;
 
@@ -463,7 +465,7 @@ var btcSwap = function(params) {
     }.bind(this));
   };
 
-  this.verifyPoWClicked = function(ticketId, txHash, nonce, success, failure) {
+  this.verifyPoW = function(ticketId, txHash, nonce, success, failure) {
     var hexTicketId = new BigNumber(ticketId).toString(16);
     var padLen = 16 - hexTicketId.length;
     var leadZerosForTicketId = Array(padLen + 1).join('0');
@@ -507,7 +509,7 @@ var btcSwap = function(params) {
         console.log('computePow txhash: ', btcTxHash);
 
       var hexTicketId = new BigNumber(ticketId).toString(16);
-      var padLen = 8 - hexTicketId.length;
+      var padLen = 16 - hexTicketId.length;
       var leadZerosForTicketId = Array(padLen + 1).join('0');
 
       var bnSrc = new BigNumber('0x' + btcTxHash + leadZerosForTicketId + hexTicketId + "0000000000000000");
@@ -527,7 +529,6 @@ var btcSwap = function(params) {
       strHash = ku.wordsToHexString(dst);
       bnHash = new BigNumber('0x' + strHash);
 
-
       var startTime = new Date().getTime();
       if (this.debug)
         console.log("startTime: ", startTime);
@@ -544,13 +545,15 @@ var btcSwap = function(params) {
         strHash = ku.wordsToHexString(dst);
         bnHash = new BigNumber('0x' + strHash);
         if (this.debug)
-          console.log("PASS", i, strHash, "DIFF", bnTarget.minus(bnHash).toString());
+          console.log("PASS", i, bnHash.toNumber(), bnTarget.toNumber(), "DIFF", bnHash.minus(bnTarget).toNumber());
 
-        if (i >= 1000)
+        if (i >= 10000 - 1) {
           failure("PoW failed.");
+          return;
+        }
 
         i += 1;
-        if (bnHash.gte(bnTarget) && i < 1000)
+        if (bnHash.gte(bnTarget) && i < 10000)
           setTimeout(tryPoW, 10, i);
         else {
           success(i);
@@ -559,8 +562,8 @@ var btcSwap = function(params) {
             console.log("endTime: ", new Date().getTime());
             console.log("duration: ", (new Date().getTime() - startTime) / 1000.0);
 
-            console.log('@@@@ nonce: ', i);
-            console.log('@@@ strHash: ', strHash);
+            console.log('nonce: ', i);
+            console.log('strHash: ', strHash);
           }
         }
       }.bind(this);
@@ -638,6 +641,180 @@ var btcSwap = function(params) {
   // var toEther = function(bnWei) {
   //   return web3.fromWei(bnWei, 'ether').toString(10);
   // };
+
+  /**
+   * Bitcoin intermediate wallet
+   */
+  this.generateWallet = function(success, failure) {
+    var network = this.btcTestnet ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
+
+    try {
+      var key = bitcoin.ECKey.makeRandom();
+
+      var wallet = {
+        key: key.toWIF(network),
+        address: key.pub.getAddress(network).toString()
+      };
+
+      success(wallet);
+    }
+    catch(e) {
+      console.error(e);
+      failure(String(e));
+    }
+  };
+
+  this.importWallet = function(wif, success, failure) {
+    var network = this.btcTestnet ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
+
+    try {
+      var key = bitcoin.ECKey.fromWIF(wif);
+
+      var wallet = {
+        key: key.toWIF(network),
+        address: key.pub.getAddress(network).toString()
+      };
+
+      success(wallet);
+    }
+    catch(e) {
+      console.error(e);
+      failure(String(e));
+    }
+  };
+
+  this.createTransaction = function(wallet, recipient, amountBtc, etherFee, etherAddress, success, failure) {
+    var blockchain = new Blockchain(this.btcTestnet ? 'testnet' : 'bitcoin');
+
+    var amount = amountBtc * SATOSHI_PER_BTC;
+    var minimum = amount + SATOSHIFEE;
+
+    if (this.debug)
+      console.log("CREATE_TRANSACTION", wallet, recipient, amountBtc, etherAddress, etherFee);
+
+    // Get unspent outputs
+    var error;
+    blockchain.addresses.unspents(wallet.address, function(err, unspents) {
+      if (err) {
+        failure("Error retrieving unspent outputs.");
+        return;
+      }
+
+      if (this.debug)
+        console.log("UNSPENTS", unspents);
+
+      if (!unspents) {
+        error = "Error: not enough unspent outputs in BTC address.";
+        failure(error);
+        return;
+      }
+
+      // Calculate balance, fee and gather inputs
+      var balanceBtc = 0;
+      var inputs = [];
+      for (var i = 0; i < unspents.length; i++) {
+        if (unspents[i].confirmations > 3) {
+          balanceBtc += parseFloat(unspents[i].value);
+          var out = {
+            hash: unspents[i].txId,
+            index: unspents[i].vout
+          };
+          inputs.push(out);
+        }
+        else {
+          failure("Not enough confirmations at your intermediate wallet. Please wait for at least 3 confirmations.");
+          return;
+        }
+      }
+      if (this.debug)
+        console.log("INPUTS", inputs);
+
+      var balance = balanceBtc * SATOSHI_PER_BTC;
+      var fee = balance - amount;
+
+      // Check balance
+      if (this.debug)
+        console.log("BALANCE", balance, "MINIMUM", minimum);
+
+      if (balance < minimum) {
+        var minimumBtc = minimum / SATOSHI_PER_BTC;
+        var feeBtc = SATOSHIFEE / SATOSHI_PER_BTC;
+        if (fee > 0)
+          feeBtc = fee / SATOSHI_PER_BTC;
+        failure(`Insufficient funds. Total needed is ${minimumBtc} BTC (includes ${feeBtc} BTC miner fee). Intermediate address has ${balanceBtc} BTC.`);
+        return;
+      }
+
+      var tx = new bitcoin.TransactionBuilder();
+
+      // Add inputs
+      for (var o = 0; o < inputs.length; o++)
+        tx.addInput(inputs[o].hash, inputs[o].index);
+
+      // Add output
+      tx.addOutput(recipient, amount);
+
+      // Add output script
+      var ethAddressBtc = new bitcoin.Address(new Buffer(etherAddress, 'hex'), this.versionAddr).toString();
+      var ethFeeValue = parseInt('1' + ('0000' + parseFloat(etherFee).toFixed(2).replace('.', '')).slice(-4));
+      tx.addOutput(ethAddressBtc, ethFeeValue);
+
+      // Make private key from WIF
+      var key = bitcoin.ECKey.fromWIF(wallet.key);
+
+      // Sign inputs with key
+      for (var s = 0; s < inputs.length; s++)
+        tx.sign(s, key);
+
+      // Build transaction
+      try {
+        tx = tx.build();
+      }
+      catch(e) {
+        error = "Error building BTC transaction: ";
+        console.error(error, e);
+        failure(error + String(e));
+        return;
+      }
+
+      var signedTx = {
+        fee: fee,
+        hash: tx.getId(),
+        hex: tx.toHex()
+      };
+
+      if (this.debug)
+        console.log(signedTx);
+
+      // Return signed transaction
+      success(signedTx);
+
+    }.bind(this));
+  };
+
+  this.propagateTransaction = function(txHex, success, failure) {
+    var blockchain = new Blockchain(this.btcTestnet ? 'testnet' : 'bitcoin');
+
+    if (!bitcoin.Transaction.fromHex(txHex)) {
+      failure("Invalid raw transaction.");
+      return;
+    }
+
+    blockchain.transactions.propagate(txHex, function(err, res) {
+      if (err) {
+        console.error(err);
+        failure("Error propagating transaction: " + String(err));
+        return;
+      }
+
+      if (!res) {
+        failure("No result from propagating transaction.");
+        return;
+      }
+
+      success(res);
+    });
+  };
 };
 
 module.exports = btcSwap;

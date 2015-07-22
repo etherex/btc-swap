@@ -1,0 +1,97 @@
+# Package Name:       btc-swap
+# Package Author:     AJoseph
+# Package Repository: https://github.com/etherex/btc-swap
+
+# This deploys the btc-swap contract
+
+# TODO You must update the address of BtcRelay
+# Olympic testnet relay: 0x142f674e911cc55c226af81ac4d6de0a671d4abf
+# Private testnet relay: 0x77045e71a7a2c50903d88e564cd72fab11e82051
+- set:
+    BtcRelay: "0x142f674e911cc55c226af81ac4d6de0a671d4abf"
+
+-
+  deploy:
+    BtcSwap:
+      contract: btc-swap.se
+      gas: 3000000
+      retry: 120
+      wait: True
+
+-
+  transact:
+    SetTrustedBtcRelay:
+      gas: 100000
+      to: $BtcSwap
+      sig: setTrustedBtcRelay:[int256]:int256
+      data:
+        - $BtcRelay
+      retry: 60
+      wait: True
+
+# Test tickets
+-
+  transact:
+    ticket1:
+      gas: 500000
+      to: $BtcSwap
+      sig: createTicket:[int256,int256,int256]:int256
+      data:
+        - "0xa0dc485fc3ade71be5e1b68397abded386c0adb7"
+        - 17000000000000000
+        - 100000000000
+      value: 17000000000000000
+      skip: 60
+      wait: True
+-
+  transact:
+    ticket1:
+      gas: 500000
+      to: "0x4491959fe1772faa7332464b0e7f1aa9aa2d8446" #$BtcSwap
+      sig: createTicket:[int256,int256,int256]:int256
+      data:
+        - "0xa0dc485fc3ade71be5e1b68397abded386c0adb7"
+        - 16000000000000000
+        - 110000000000
+      value: 16000000000000000
+      skip: 60
+      wait: True
+-
+  transact:
+    ticket1:
+      gas: 500000
+      to: "0x4491959fe1772faa7332464b0e7f1aa9aa2d8446" #$BtcSwap
+      sig: createTicket:[int256,int256,int256]:int256
+      data:
+        - "0xa0dc485fc3ade71be5e1b68397abded386c0adb7"
+        - 15000000000000000
+        - 120000000000
+      value: 15000000000000000
+      skip: 60
+      wait: True
+-
+  transact:
+    ticket1:
+      gas: 500000
+      to: "0x4491959fe1772faa7332464b0e7f1aa9aa2d8446" #$BtcSwap
+      sig: createTicket:[int256,int256,int256]:int256
+      data:
+        - "0xa0dc485fc3ade71be5e1b68397abded386c0adb7"
+        - 14000000000000000
+        - 130000000000
+      value: 14000000000000000
+      skip: 60
+      wait: True
+-
+  transact:
+    ticket1:
+      gas: 500000
+      to: "0x4491959fe1772faa7332464b0e7f1aa9aa2d8446" #$BtcSwap
+      sig: createTicket:[int256,int256,int256]:int256
+      data:
+        - "0xa0dc485fc3ade71be5e1b68397abded386c0adb7"
+        - 14500000000000000
+        - 140000000000
+      value: 14500000000000000
+      skip: 60
+      wait: True
