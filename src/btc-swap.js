@@ -83,6 +83,39 @@ var btcSwap = function(params) {
   this.versionAddr = this.btcTestnet ? 111 : 0;
 
 
+  this.lookupTicket = function(id, success, failure) {
+    this.contract.lookupTicket.call(id, function(error, result) {
+      if (error) {
+        failure("Error loading ticket " + id + ": " + String(error));
+        return;
+      }
+
+      if (this.debug)
+        console.log("LOOKUP", result);
+
+      if (!result || !result[0] || !result[0].toNumber()) {
+        success(false);
+        return;
+      }
+
+      var bnWei = result[1];
+      var bnWeiPerSatoshi = result[2];
+
+      var ticket = {
+        id: id,
+        address: this.toBtcAddr(result[0]), // toBtcAddr(arr[0], this.versionAddr),
+        amount: bnWei.toString(), // toEther(bnWei),
+        price: this.toBtcPrice(bnWeiPerSatoshi),
+        total: this.toBtcTotal(bnWei, bnWeiPerSatoshi),
+        expiry: result[3].toNumber(),
+        claimer: this.toHash(result[4]),
+        txHash: this.toHash(result[5])
+      };
+
+      success(ticket);
+    }.bind(this));
+  };
+
   this.createTicket = function(btcAddress, numEther, btcTotal, success, completed, failure) {
     var addrHex;
     try {
@@ -184,6 +217,102 @@ var btcSwap = function(params) {
           console.log('createFilter.stopWatching()...');
         createFilter.stopWatching();
       }
+    }.bind(this));
+  };
+
+  this.reserveTicket = function(ticketId, txHash, powNonce, success, completed, failure) {
+    txHash = '0x' + txHash;
+
+    var objParam = {gas: 500000};
+
+    var startTime = Date.now();
+
+    this.contract.reserveTicket.call(ticketId, txHash, powNonce, objParam, function(error, result) {
+      if (error) {
+        failure(error);
+        return;
+      }
+
+      var endTime = Date.now();
+      var durationSec = (endTime - startTime) / 1000;
+      if (this.debug)
+        console.log('reserveTicket call:', result.toNumber(), ' duration:', durationSec);
+
+      var rval = result.toNumber();
+      switch (rval) {
+        case ticketId:
+          if (this.debug)
+            console.log('reserveTicket call looks good, now sending transaction...');
+          break;  // the only result that does not return
+        case RESERVE_FAIL_UNRESERVABLE:
+          failure('Ticket already reserved.');
+          return;
+        case RESERVE_FAIL_POW:
+          failure('Proof of Work is invalid.');
+          return;
+        default:
+          if (this.debug)
+            console.log('Unexpected error:', rval);
+          failure('Unexpected error: ' + rval);
+          return;
+      }
+
+      // at this point, the eth_call succeeded
+      // if (this.debug)
+      //   return;
+
+      var reserveFilter = this.contract.ticketEvent({ ticketId: ticketId });
+      reserveFilter.watch(function(err, res) {
+        try {
+          if (err) {
+            if (this.debug)
+              console.log('reserveFilter error:', err);
+            failure(err);
+            return;
+          }
+
+          if (this.debug)
+            console.log('reserveFilter result:', res);
+
+          rval = res.args.rval.toNumber();
+          if (rval === ticketId) {
+            if (this.debug)
+              console.log('Ticket reserved:', ticketId);
+            setTimeout( function() {
+              this.lookupTicket(ticketId, function(ticket) {
+                completed(ticket);
+              }, function(lookupError) {
+                failure('Could not lookup reserved ticket: ' + lookupError);
+              });
+            }.bind(this), 1000);
+          }
+          else {
+            if (this.debug)
+              console.log('Reserve ticket error: ' + rval);
+            failure('Reserve ticket error: ' + rval);
+          }
+        }
+        finally {
+          if (this.debug)
+            console.log('reserveFilter.stopWatching()...');
+          reserveFilter.stopWatching();
+        }
+      }.bind(this));
+
+      this.contract.reserveTicket.sendTransaction(ticketId, txHash, powNonce, objParam, function(err, res) {
+        if (this.debug)
+          console.log('reserveTicket result:', res);
+        if (err) {
+          failure(err);
+          if (this.debug)
+            console.log('reserveTicket sendTx error:', err);
+          return;
+        }
+        success({
+          id: ticketId,
+          hash: res
+        });
+      }.bind(this));
     }.bind(this));
   };
 
@@ -293,102 +422,6 @@ var btcSwap = function(params) {
     }.bind(this));
   };
 
-  this.reserveTicket = function(ticketId, txHash, powNonce, success, completed, failure) {
-    txHash = '0x' + txHash;
-
-    var objParam = {gas: 500000};
-
-    var startTime = Date.now();
-
-    this.contract.reserveTicket.call(ticketId, txHash, powNonce, objParam, function(error, result) {
-      if (error) {
-        failure(error);
-        return;
-      }
-
-      var endTime = Date.now();
-      var durationSec = (endTime - startTime) / 1000;
-      if (this.debug)
-        console.log('reserveTicket call:', result.toNumber(), ' duration:', durationSec);
-
-      var rval = result.toNumber();
-      switch (rval) {
-        case ticketId:
-          if (this.debug)
-            console.log('reserveTicket call looks good, now sending transaction...');
-          break;  // the only result that does not return
-        case RESERVE_FAIL_UNRESERVABLE:
-          failure('Ticket already reserved.');
-          return;
-        case RESERVE_FAIL_POW:
-          failure('Proof of Work is invalid.');
-          return;
-        default:
-          if (this.debug)
-            console.log('Unexpected error:', rval);
-          failure('Unexpected error: ' + rval);
-          return;
-      }
-
-      // at this point, the eth_call succeeded
-      // if (this.debug)
-      //   return;
-
-      var reserveFilter = this.contract.ticketEvent({ ticketId: ticketId });
-      reserveFilter.watch(function(err, res) {
-        try {
-          if (err) {
-            if (this.debug)
-              console.log('reserveFilter error:', err);
-            failure(err);
-            return;
-          }
-
-          if (this.debug)
-            console.log('reserveFilter result:', res);
-
-          rval = res.args.rval.toNumber();
-          if (rval === ticketId) {
-            if (this.debug)
-              console.log('Ticket reserved:', ticketId);
-            setTimeout( function() {
-              this.lookupTicket(ticketId, function(ticket) {
-                completed(ticket);
-              }, function(lookupError) {
-                failure('Could not lookup reserved ticket: ' + lookupError);
-              });
-            }.bind(this), 1000);
-          }
-          else {
-            if (this.debug)
-              console.log('Reserve ticket error: ' + rval);
-            failure('Reserve ticket error: ' + rval);
-          }
-        }
-        finally {
-          if (this.debug)
-            console.log('reserveFilter.stopWatching()...');
-          reserveFilter.stopWatching();
-        }
-      }.bind(this));
-
-      this.contract.reserveTicket.sendTransaction(ticketId, txHash, powNonce, objParam, function(err, res) {
-        if (this.debug)
-          console.log('reserveTicket result:', res);
-        if (err) {
-          failure(err);
-          if (this.debug)
-            console.log('reserveTicket sendTx error:', err);
-          return;
-        }
-        success({
-          id: ticketId,
-          hash: res
-        });
-      }.bind(this));
-    }.bind(this));
-  };
-
   // returns tickets with keys ticketId, btcAddr, numEther, btcTotal, numClaimExpiry
   this.getOpenTickets = function(start, end, success, failure) {
     this.contract.getOpenTickets.call(start, end, function(error, results) {
@@ -441,77 +474,9 @@ var btcSwap = function(params) {
     }.bind(this));
   };
 
-  this.lookupTicket = function(id, success, failure) {
-    this.contract.lookupTicket.call(id, function(error, result) {
-      if (error) {
-        failure("Error loading ticket " + id + ": " + String(error));
-        return;
-      }
-
-      if (this.debug)
-        console.log("LOOKUP", result);
-
-      if (!result || !result[0] || !result[0].toNumber()) {
-        success(false);
-        return;
-      }
-
-      var bnWei = result[1];
-      var bnWeiPerSatoshi = result[2];
-
-      var ticket = {
-        id: id,
-        address: this.toBtcAddr(result[0]), // toBtcAddr(arr[0], this.versionAddr),
-        amount: bnWei.toString(), // toEther(bnWei),
-        price: this.toBtcPrice(bnWeiPerSatoshi),
-        total: this.toBtcTotal(bnWei, bnWeiPerSatoshi),
-        expiry: result[3].toNumber(),
-        claimer: this.toHash(result[4]),
-        txHash: this.toHash(result[5])
-      };
-
-      success(ticket);
-    }.bind(this));
-  };
-
-  this.verifyPoW = function(ticketId, txHash, nonce, success, failure) {
-    var hexTicketId = new BigNumber(ticketId).toString(16);
-    var padLen = 16 - hexTicketId.length;
-    var leadZerosForTicketId = Array(padLen + 1).join('0');
-
-    var hexNonce = new BigNumber(nonce).toString(16);
-    padLen = 16 - hexNonce.length;
-    var leadZerosForNonce = Array(padLen + 1).join('0');
-
-    var bnSrc = new BigNumber('0x' + txHash + leadZerosForTicketId + hexTicketId + leadZerosForNonce + hexNonce);
-    var src;
-    var bnHash;
-    var strHash;
-
-    if (this.debug)
-      console.log('PoW source: ', bnSrc.toString(16));
-
-    src = ku.hexStringToBytes(bnSrc.toString(16));
-    src = new Uint32Array(src.buffer);
-    var srcLen = src.length;
-    var dst = new Uint32Array(8);
-    kecc.digestWords(dst, 0, 8, src, 0, srcLen);
-
-    strHash = ku.wordsToHexString(dst);
-    bnHash = new BigNumber('0x' + strHash);
-
-    var isPowValid = bnHash.lt(bnTarget);
-    if (this.debug)
-      console.log('isPowValid: ', isPowValid, ' pow: ', bnHash.toString(16), ' target: ', bnTarget.toString(16));
-
-    if (isPowValid) {
-      success('Proof of Work valid.');
-    }
-    else {
-      failure('Proof of Work invalid.');
-    }
-  };
-
+  /*
+   * PoW nonce generation, verification and merkleProof
+   */
   this.computePoW = function(ticketId, btcTxHash, success, failure) {
     try {
       if (this.debug)
@@ -584,41 +549,52 @@ var btcSwap = function(params) {
     }
   };
 
+  this.verifyPoW = function(ticketId, txHash, nonce, success, failure) {
+    var hexTicketId = new BigNumber(ticketId).toString(16);
+    var padLen = 16 - hexTicketId.length;
+    var leadZerosForTicketId = Array(padLen + 1).join('0');
+
+    var hexNonce = new BigNumber(nonce).toString(16);
+    padLen = 16 - hexNonce.length;
+    var leadZerosForNonce = Array(padLen + 1).join('0');
+
+    var bnSrc = new BigNumber('0x' + txHash + leadZerosForTicketId + hexTicketId + leadZerosForNonce + hexNonce);
+    var src;
+    var bnHash;
+    var strHash;
+
+    if (this.debug)
+      console.log('PoW source: ', bnSrc.toString(16));
+
+    src = ku.hexStringToBytes(bnSrc.toString(16));
+    src = new Uint32Array(src.buffer);
+    var srcLen = src.length;
+    var dst = new Uint32Array(8);
+    kecc.digestWords(dst, 0, 8, src, 0, srcLen);
+
+    strHash = ku.wordsToHexString(dst);
+    bnHash = new BigNumber('0x' + strHash);
+
+    var isPowValid = bnHash.lt(bnTarget);
+    if (this.debug)
+      console.log('isPowValid: ', isPowValid, ' pow: ', bnHash.toString(16), ' target: ', bnTarget.toString(16));
+
+    if (isPowValid) {
+      success('Proof of Work valid.');
+    }
+    else {
+      failure('Proof of Work invalid.');
+    }
+  };
+
   this.merkleProof = function(tx, index) {
     return btcproof.getProof(tx, index);
   };
 
-  this.debugVerifyTx = function() {
-    // TODO don't forget to update the ABI
-    var dbgAddress = '0x90439a6495ee8e7d86a4acd2cbe649ed21e2ef6e';
-    var dbgContract = web3.eth.contract(debugAbi).at(dbgAddress);
 
-    var txHash = '0x558231b40b5fdddb132f9fcc8dd82c32f124b6139ecf839656f4575a29dca012';
-    var dbgEvent = dbgContract.dbgEvent({ txHash: txHash });
-
-    var txhEvent = dbgContract.txhEvent({ txHash: txHash });
-
-
-    dbgEvent.watch(function(err, res) {
-      if (err) {
-        console.log('Debug Event error: ', err);
-        return;
-      }
-
-      console.log('Debug Event result: ', res);
-    });
-
-
-    txhEvent.watch(function(err, res) {
-      if (err) {
-        console.log('txHash Event error: ', err);
-        return;
-      }
-
-      console.log('txHash Event result: ', res);
-    });
-  };
-
+  /*
+   * Utility functions
+   */
   this.toBtcPrice = function(bnWeiPerSatoshi) {
     return new BigNumber(1).div(bnWeiPerSatoshi.div(WEI_PER_ETHER).mul(SATOSHI_PER_BTC)).toString();
   };
@@ -651,153 +627,43 @@ var btcSwap = function(params) {
   //   return web3.fromWei(bnWei, 'ether').toString(10);
   // };
 
-  /**
-   * BTC relay
+  /*
+   * Debugging
    */
-  this.getBlockchainHead = function(success, failure) {
-    this.relay.getBlockchainHead.call(function(err, res) {
+  this.debugVerifyTx = function() {
+    // TODO don't forget to update the ABI
+    var dbgAddress = '0x90439a6495ee8e7d86a4acd2cbe649ed21e2ef6e';
+    var dbgContract = web3.eth.contract(debugAbi).at(dbgAddress);
+
+    var txHash = '0x558231b40b5fdddb132f9fcc8dd82c32f124b6139ecf839656f4575a29dca012';
+    var dbgEvent = dbgContract.dbgEvent({ txHash: txHash });
+
+    var txhEvent = dbgContract.txhEvent({ txHash: txHash });
+
+
+    dbgEvent.watch(function(err, res) {
       if (err) {
-        var error = "Error retrieving BTC chain head:";
-        console.error(error, err);
-        failure(error + ' ' + String(err));
+        console.log('Debug Event error: ', err);
         return;
       }
 
-      var hash = res.toString(16);
-      var formattedHash = Array(64 - hash.length + 1).join('0') + hash;
-
-      success(formattedHash);
+      console.log('Debug Event result: ', res);
     });
-  };
 
-  this.getLastBlockHeight = function(success, failure) {
-    this.relay.getLastBlockHeight.call(function(err, res) {
+
+    txhEvent.watch(function(err, res) {
       if (err) {
-        var error = "Error retrieving BTC block height:";
-        console.error(error, err);
-        failure(error + ' ' + String(err));
+        console.log('txHash Event error: ', err);
         return;
       }
 
-      var height = res.toString();
-
-      success(height);
+      console.log('txHash Event result: ', res);
     });
   };
 
-  this.storeBlockHeader = function(blockHash, success, failure) {
-    var options = {gas: 300000};
-
-    var reqOptions = {
-      hostname: (this.btcTestnet ? 't' : '') + 'btc.blockr.io',
-      port: 443,
-      path: '/api/v1/block/raw/' + blockHash,
-      method: 'GET',
-      withCredentials: false
-    };
-
-    var errorMsg;
-    var req = https.request(reqOptions, function(res) {
-      if (!res || res.statusCode !== 200) {
-        errorMsg = "Error retrieving BTC block.";
-        console.error(errorMsg, res);
-        failure(errorMsg);
-        return;
-      }
-
-      res.on('data', function(data) {
-        var json = JSON.parse(data);
-
-        if (json.status !== 'success') {
-          errorMsg = "Error retrieving BTC block data.";
-          console.error(errorMsg, json);
-          failure(errorMsg);
-          return;
-        }
-
-        data = json.data;
-        if (!data || !data.tx) {
-          errorMsg = "Not enough data in BTC block.";
-          console.error(errorMsg, data);
-          failure(errorMsg);
-          return;
-        }
-
-        var block = new bitcoin.Block();
-        block.version = data.version;
-        block.prevHash = bitcoin.bufferutils.reverse(new Buffer(data.previousblockhash, 'hex'));
-        block.merkleRoot = bitcoin.bufferutils.reverse(new Buffer(data.merkleroot, 'hex'));
-        block.timestamp = data.time;
-        block.bits = parseInt(data.bits, 16);
-        block.nonce = data.nonce;
-
-        var blockHeader = web3.toAscii(block.toHex(true));
-
-        if (this.debug) {
-          console.log("BTC_BLOCK", block, block.toHex(true));
-          console.log("BTC_BLOCK_BYTES", blockHeader);
-        }
-
-        errorMsg = "Block header is invalid.";
-
-        this.relay.storeBlockHeader.call(blockHeader, options, function(err, result) {
-          if (err) {
-            console.error(errorMsg, err);
-            failure(errorMsg + ' ' + String(err));
-            return;
-          }
-
-          var blockNumber = result.toNumber();
-
-          if (this.debug)
-            console.log("STORE_BLOCK_HEADER", blockNumber, blockHash, blockHeader);
-
-          if (blockNumber) {
-            this.relay.storeBlockHeader.sendTransaction(blockHeader, options, function(error, txHash) {
-              if (error) {
-                console.error(errorMsg, error);
-                failure(errorMsg + ' Sending transaction failed: ' + String(error));
-                return;
-              }
-
-              if (txHash) {
-                var txFilter = web3.eth.filter('latest');
-                txFilter.watch( function(filterError, newBlockHash) {
-                  if (filterError) {
-                    console.error(errorMsg, filterError);
-                    failure(errorMsg + ' Filter failed: ' + String(filterError));
-                    return;
-                  }
-                  if (!newBlockHash)
-                    return;
-
-                  var tx = web3.eth.getTransactionReceipt(txHash);
-                  if (tx && tx.blockNumber) {
-                    success(blockNumber); // Return the BTC blockNumber
-                    txFilter.stopWatching();
-                  }
-                });
-              }
-              else
-                failure(errorMsg);
-            });
-          }
-          else
-            failure(errorMsg);
-        }.bind(this));
-      }.bind(this));
-    }.bind(this));
-
-    req.end();
-    req.on('error', function(e) {
-      errorMsg = "Request error:";
-      console.error(errorMsg, e);
-      failure(errorMsg + " " + String(e));
-    });
-  };
 
   /**
-   * Bitcoin intermediate wallet
+   * BTC intermediate wallet
    */
   this.generateWallet = function(success, failure) {
     var network = this.btcTestnet ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
@@ -967,6 +833,152 @@ var btcSwap = function(params) {
       }
 
       success(res);
+    });
+  };
+
+
+  /**
+   * BTC relay
+   */
+  this.getBlockchainHead = function(success, failure) {
+    this.relay.getBlockchainHead.call(function(err, res) {
+      if (err) {
+        var error = "Error retrieving BTC chain head:";
+        console.error(error, err);
+        failure(error + ' ' + String(err));
+        return;
+      }
+
+      var hash = res.toString(16);
+      var formattedHash = Array(64 - hash.length + 1).join('0') + hash;
+
+      success(formattedHash);
+    });
+  };
+
+  this.getLastBlockHeight = function(success, failure) {
+    this.relay.getLastBlockHeight.call(function(err, res) {
+      if (err) {
+        var error = "Error retrieving BTC block height:";
+        console.error(error, err);
+        failure(error + ' ' + String(err));
+        return;
+      }
+
+      var height = res.toString();
+
+      success(height);
+    });
+  };
+
+  this.storeBlockHeader = function(blockHash, success, failure) {
+    var options = {gas: 300000};
+
+    var reqOptions = {
+      hostname: (this.btcTestnet ? 't' : '') + 'btc.blockr.io',
+      port: 443,
+      path: '/api/v1/block/raw/' + blockHash,
+      method: 'GET',
+      withCredentials: false
+    };
+
+    var errorMsg;
+    var req = https.request(reqOptions, function(res) {
+      if (!res || res.statusCode !== 200) {
+        errorMsg = "Error retrieving BTC block.";
+        console.error(errorMsg, res);
+        failure(errorMsg);
+        return;
+      }
+
+      res.on('data', function(data) {
+        var json = JSON.parse(data);
+
+        if (json.status !== 'success') {
+          errorMsg = "Error retrieving BTC block data.";
+          console.error(errorMsg, json);
+          failure(errorMsg);
+          return;
+        }
+
+        data = json.data;
+        if (!data || !data.tx) {
+          errorMsg = "Not enough data in BTC block.";
+          console.error(errorMsg, data);
+          failure(errorMsg);
+          return;
+        }
+
+        var block = new bitcoin.Block();
+        block.version = data.version;
+        block.prevHash = bitcoin.bufferutils.reverse(new Buffer(data.previousblockhash, 'hex'));
+        block.merkleRoot = bitcoin.bufferutils.reverse(new Buffer(data.merkleroot, 'hex'));
+        block.timestamp = data.time;
+        block.bits = parseInt(data.bits, 16);
+        block.nonce = data.nonce;
+
+        var blockHeader = web3.toAscii(block.toHex(true));
+
+        if (this.debug) {
+          console.log("BTC_BLOCK", block, block.toHex(true));
+          console.log("BTC_BLOCK_BYTES", blockHeader);
+        }
+
+        errorMsg = "Block header is invalid.";
+
+        this.relay.storeBlockHeader.call(blockHeader, options, function(err, result) {
+          if (err) {
+            console.error(errorMsg, err);
+            failure(errorMsg + ' ' + String(err));
+            return;
+          }
+
+          var blockNumber = result.toNumber();
+
+          if (this.debug)
+            console.log("STORE_BLOCK_HEADER", blockNumber, blockHash, blockHeader);
+
+          if (blockNumber) {
+            this.relay.storeBlockHeader.sendTransaction(blockHeader, options, function(error, txHash) {
+              if (error) {
+                console.error(errorMsg, error);
+                failure(errorMsg + ' Sending transaction failed: ' + String(error));
+                return;
+              }
+
+              if (txHash) {
+                var txFilter = web3.eth.filter('latest');
+                txFilter.watch( function(filterError, newBlockHash) {
+                  if (filterError) {
+                    console.error(errorMsg, filterError);
+                    failure(errorMsg + ' Filter failed: ' + String(filterError));
+                    return;
+                  }
+                  if (!newBlockHash)
+                    return;
+
+                  var tx = web3.eth.getTransactionReceipt(txHash);
+                  if (tx && tx.blockNumber) {
+                    success(blockNumber); // Return the BTC blockNumber
+                    txFilter.stopWatching();
+                  }
+                });
+              }
+              else
+                failure(errorMsg);
+            });
+          }
+          else
+            failure(errorMsg);
+        }.bind(this));
+      }.bind(this));
+    }.bind(this));
+
+    req.end();
+    req.on('error', function(e) {
+      errorMsg = "Request error:";
+      console.error(errorMsg, e);
+      failure(errorMsg + " " + String(e));
     });
   };
 };
