@@ -739,17 +739,12 @@ var btcSwap = function(params) {
                 }
                 if (!newBlockHash)
                   return;
-                web3.eth.getTransactionReceipt(txHash, function(txError, tx) {
-                  if (txError) {
-                    console.error(errorMsg, txError);
-                    failure(errorMsg + ' Transaction failed: ' + String(txError));
-                    return;
-                  }
-                  if (tx && tx.blockNumber) {
-                    success(blockNumber); // Return the BTC blockNumber
-                    txFilter.stopWatching();
-                  }
-                });
+
+                var tx = web3.eth.getTransactionReceipt(txHash);
+                if (tx && tx.blockNumber) {
+                  success(blockNumber); // Return the BTC blockNumber
+                  txFilter.stopWatching();
+                }
               });
             }
             else
