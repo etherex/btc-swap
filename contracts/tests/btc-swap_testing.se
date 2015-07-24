@@ -1,0 +1,7 @@
+inset('../btc-swap.se')
+
+def funcKeccak(txHash, ticketId, nonce):
+    return(keccak(txHash, ticketId, nonce))
+
+def funcTicketAvailable(ticketId):
+    return(ticketAvailable(ticketId))

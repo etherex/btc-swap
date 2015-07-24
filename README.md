@@ -9,9 +9,9 @@ npm install --save etherex/btc-swap
 ```
 var BtcSwap = require('btc-swap');
 var client = new BtcSwap({
-  address: "0x4491959fe1772faa7332464b0e7f1aa9aa2d8446",
-  host: "localhost:8545",
-  from: "0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826",
+  address: "0x4491959fe1772faa7332464b0e7f1aa9aa2d8446", // Address of the BtcSwap contract
+  host: "localhost:8545", // Ethereum node
+  from: "0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826", // Ethereum account
   debug: true
 });
 ```
@@ -19,6 +19,9 @@ var client = new BtcSwap({
 ## Methods
 For any method with a `failure` callback, any error will fire that callback
 before aborting the execution of that method.
+
+#### `lookupTicket(ticketId, success, failure)`
+Returns a ticket object specified by `ticketId` to the `success` callback.
 
 #### `createTicket(btcAddress, numEther, btcTotal, success, completed, failure)`
 Create a ticket for `btcAddress` of `numEther` for `btcTotal`. The `success`
@@ -43,10 +46,28 @@ callback gets fired when the Ethereum transaction is sent and returns the
 Ethereum transaction hash. The `completed` callback gets fired when the
 transaction is mined and returns the ticket ID.
 
-#### `getOpenTickets(start, end, success, failure)`
-This will be replaced with a `getOpenTicketIDs(success, failure)` method. It
-currently returns all open tickets as one big array.
+#### `cancelTicket(ticketId, success, failure)`
+Cancel a ticket with `ticketId`, if the ticket is still reservable and by
+the creator of that ticket only. The `success` callback gets fired when the
+Ethereum transaction is sent and returns the ticket ID as first parameter and
+the Ethereum transaction hash as second parameter. The `completed` callback gets
+fired when the transaction is mined and returns the ticket ID that was just
+canceled.
 
+## Ticket ID list
+#### `getTicketIDs(success, failure)`
+Returns open ticket IDs. Use with `lookupTicket()` to load all currently open
+tickets.
+
+## Watch filter
+#### `watchTickets(ticketEvent, failure)`
+Sets a global watch filter for all ticket events, which calls `ticketEvent` that
+returns `new`, `reserved` or `removed` as first parameter, and the ticket ID
+as second parameter. Use this to watch tickets created, reserved, claimed or
+canceled by other users. Take note that this filter will also trigger on the
+same events as the other methods' `completed` callbacks.
+
+## Proof of Work nonce
 #### `computePoW(ticketId, btcTxHash, success, failure)`
 Compute a nonce for a ticket with ID `ticketId`, with the BTC transaction hash
 `txHash`. The `success` callback gets fired when a nonce is found.
@@ -70,7 +91,7 @@ wallet object with the address and the same WIF key.
 
 #### `createTransaction(wallet, recipient, amountBtc, etherFee, etherAddress, success, failure)`
 Create a signed BTC transaction to get a transaction hash for `reserveTicket()`
-and to be later broadcast with `propagateTransaction()` (see below), using a
+to be later broadcast with `propagateTransaction()` (see below), using a
 wallet object `wallet` (as returned by `generateWallet()`), paid to the BTC
 address `recipient` for the amount of `amountBtc`, including an ether fee of
 `etherFee` for a third-party claimer, and from the Ethereum address

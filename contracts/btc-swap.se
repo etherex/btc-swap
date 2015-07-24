@@ -12,11 +12,12 @@
 
 extern relayContract: [verifyTx:[int256,int256,int256[],int256]:int256]
 
-# claimExpiry 0 means ticket doesn't exist
-data ticket[2**64](btcAddr, numWei, weiPerSatoshi, claimer, claimExpiry, claimTxHash)
+data tickets[2**64](btcAddr, numWei, weiPerSatoshi, claimer, claimExpiry, claimTxHash, owner)
+data ticketIDs[2**64](id, prevId, nextId)  # opened ticket IDs
 
-# ticket and m_keccak assume ticketId is 64bit int
-data lastTicketId  # last ticket id.  first valid id is 1
+# tickets and keccak assume ticketId is 64bit int
+data lastTicketId  # last ticket id, first valid id is 1
+data openTickets  # number of open tickets
 
 data trustedBtcRelay
 
@@ -27,7 +28,7 @@ macro ONLY_RESERVER_CLAIM_SECS: 2 * ONE_HOUR_IN_SECS
 macro ANYONE_CLAIM_SECS: 2 * ONE_HOUR_IN_SECS
 macro TOTAL_RESERVED_SECS: ONLY_RESERVER_CLAIM_SECS + ANYONE_CLAIM_SECS
 macro FRESH_TICKET_EXPIRY: 1
-macro TICKET_FIELDS: 7
+macro TICKET_FIELDS: 8
 
 macro RESERVE_FAIL_UNRESERVABLE: -10
 macro RESERVE_FAIL_POW: -11
@@ -42,24 +43,43 @@ macro CLAIM_FAIL_TX_ENCODING: -27
 
 # Events
 event ticketEvent(ticketId:indexed, rval)
+
+# TODO testing only
 event claimSuccess(btcAddr, numSatoshi, ethAddr, satoshiIn2ndOutput)
 
 # Macros
 
 # ticket exists and is reservable.
 # also means that ticket is NOT claimable since ticket needs to be reserved first
-macro m_ticketAvailable($ticketId):
-    with $claimExpiry = self.ticket[$ticketId].claimExpiry:
+macro ticketAvailable($ticketId):
+    with $claimExpiry = self.tickets[$ticketId].claimExpiry:
         $claimExpiry > 0 && block.timestamp > $claimExpiry  # claimExpiry 0 means ticket doesn't exist
 
-macro m_deleteTicket($ticketId):
-    self.ticket[$ticketId].btcAddr = 0
-    self.ticket[$ticketId].numWei = 0
-    self.ticket[$ticketId].weiPerSatoshi = 0
-    self.ticket[$ticketId].claimer = 0
-    self.ticket[$ticketId].claimExpiry = 0
-    self.ticket[$ticketId].claimTxHash = 0
+macro deleteTicket($ticketId):
+    self.tickets[$ticketId].btcAddr = 0
+    self.tickets[$ticketId].numWei = 0
+    self.tickets[$ticketId].weiPerSatoshi = 0
+    self.tickets[$ticketId].claimer = 0
+    self.tickets[$ticketId].claimExpiry = 0
+    self.tickets[$ticketId].claimTxHash = 0
+    self.tickets[$ticketId].owner = 0
 
+    prevId = self.ticketIDs[$ticketId].prevId
+    nextId = self.ticketIDs[$ticketId].nextId
+    if prevId and nextId:
+        self.ticketIDs[prevId].nextId = nextId
+        self.ticketIDs[nextId].prevId = prevId
+    elif prevId:
+        self.lastTicketId = prevId
+    if nextId:
+        self.ticketIDs[$ticketId].nextId = 0
+    if prevId:
+        self.ticketIDs[$ticketId].prevId = 0
+    self.ticketIDs[$ticketId].id = 0
+
+    self.openTickets -= 1
+
+    log(type=ticketEvent, $ticketId, 0)
 
 macro getEthAddr($indexStart, $inStr, $size, $offset):
     $endIndex = ($indexStart*2) + $offset + ($size * 2)
@@ -85,11 +105,11 @@ macro getEthAddr($indexStart, $inStr, $size, $offset):
 
     $result
 
-macro m_isValidPow($txHash, $ticketId, $powNonce):
-    lt(m_keccak($txHash, $ticketId, $powNonce), POW_TARGET)  # lt is required for unsigned comparison
+macro isValidPow($txHash, $ticketId, $powNonce):
+    lt(keccak($txHash, $ticketId, $powNonce), POW_TARGET)  # lt is required for unsigned comparison
 
 # ticketId and nonce are 8bytes each
-macro m_keccak($txHash, $ticketId, $powNonce):
+macro keccak($txHash, $ticketId, $powNonce):
     with $x = ~alloc(48):
         ~mstore($x, $txHash)
         ~mstore($x + 32, $ticketId*2**192)
@@ -103,11 +123,6 @@ macro m_keccak($txHash, $ticketId, $powNonce):
 # def testingOnlyClaimTicketLatestTicket(txStr:str, txHash, txIndex, sibling:arr, txBlockHash):
 #     return(self.claimTicket(self.lastTicketId, txStr, txHash, txIndex, sibling, txBlockHash))
 
-def ttClaimHash():
-    return(self.ticket[self.lastTicketId].claimTxHash)
-
-def ttLastTid():
-    return(self.lastTicketId)
 
 # trustedRelayContract is the address of the trusted btcrelay contract
 def setTrustedBtcRelay(trustedRelayContract):
@@ -116,38 +131,56 @@ def setTrustedBtcRelay(trustedRelayContract):
         return(1)
     return(0)
 
+def lookupTicket(ticketId):
+    if (ticketId > self.lastTicketId || ticketId <= 0 || !self.tickets[ticketId].claimExpiry):
+        return([]:arr)
+
+    ticket = array(TICKET_FIELDS)
+    ticket[0] = ticketId
+    ticket[1] = self.tickets[ticketId].btcAddr
+    ticket[2] = self.tickets[ticketId].numWei
+    ticket[3] = self.tickets[ticketId].weiPerSatoshi
+    ticket[4] = self.tickets[ticketId].claimExpiry
+    ticket[5] = self.tickets[ticketId].claimer
+    ticket[6] = self.tickets[ticketId].claimTxHash
+    ticket[7] = self.tickets[ticketId].owner
+
+    return(ticket:arr)
+
 def createTicket(btcAddr, numWei, weiPerSatoshi):
     if msg.value < numWei || numWei == 0:
         send(msg.sender, msg.value)
         log(type=ticketEvent, 0, 0)
         return(0)
 
-    self.lastTicketId += 1
-    # TODO use var for lastTicketId ?
-    self.ticket[self.lastTicketId].btcAddr = btcAddr
-    self.ticket[self.lastTicketId].numWei = numWei
-    self.ticket[self.lastTicketId].weiPerSatoshi = weiPerSatoshi
-    self.ticket[self.lastTicketId].claimExpiry = FRESH_TICKET_EXPIRY # allow to be reserved; see m_ticketAvailable()
+    lastTicketId = self.lastTicketId
+    ticketId = lastTicketId + 1
 
-    log(type=ticketEvent, 0, self.lastTicketId)
-    return(self.lastTicketId)
+    self.tickets[ticketId].btcAddr = btcAddr
+    self.tickets[ticketId].numWei = numWei
+    self.tickets[ticketId].weiPerSatoshi = weiPerSatoshi
+    self.tickets[ticketId].claimExpiry = FRESH_TICKET_EXPIRY  # allow to be reserved; see ticketAvailable()
+    self.tickets[ticketId].owner = msg.sender
 
+    self.ticketIDs[lastTicketId].nextId = ticketId
+    self.ticketIDs[ticketId].prevId = lastTicketId
+    self.ticketIDs[ticketId].id = ticketId
+    self.lastTicketId = ticketId
+    self.openTickets += 1
 
-def lookupTicket(ticketId):
-    if (ticketId > self.lastTicketId || ticketId <= 0):
-        return([]:arr)
+    log(type=ticketEvent, 0, ticketId)
 
-    return([self.ticket[ticketId].btcAddr, self.ticket[ticketId].numWei, self.ticket[ticketId].weiPerSatoshi, self.ticket[ticketId].claimExpiry, self.ticket[ticketId].claimer, self.ticket[ticketId].claimTxHash]:arr)
+    return(ticketId)
 
 def reserveTicket(ticketId, txHash, nonce):
-    if !m_ticketAvailable(ticketId):
+    if !ticketAvailable(ticketId):
         log(type=ticketEvent, ticketId, RESERVE_FAIL_UNRESERVABLE)
         return(RESERVE_FAIL_UNRESERVABLE)
 
-    if m_isValidPow(txHash, ticketId, nonce):  # ensure args are in correct order: txHash then ticketId
-        self.ticket[ticketId].claimer = msg.sender
-        self.ticket[ticketId].claimExpiry = block.timestamp + TOTAL_RESERVED_SECS
-        self.ticket[ticketId].claimTxHash = txHash
+    if isValidPow(txHash, ticketId, nonce):  # ensure args are in correct order: txHash then ticketId
+        self.tickets[ticketId].claimer = msg.sender
+        self.tickets[ticketId].claimExpiry = block.timestamp + TOTAL_RESERVED_SECS
+        self.tickets[ticketId].claimTxHash = txHash
         log(type=ticketEvent, ticketId, ticketId)
         return(ticketId)
     else:
@@ -157,7 +190,7 @@ def reserveTicket(ticketId, txHash, nonce):
 # A ticket can only be claimed once, and thus the Bitcoin tx should send enough
 # bitcoins so that all the ether can be claimed
 def claimTicket(ticketId, txStr:str, txHash, txIndex, sibling:arr, txBlockHash):
-    claimExpiry = self.ticket[ticketId].claimExpiry
+    claimExpiry = self.tickets[ticketId].claimExpiry
     if (claimExpiry == 0):  # claimExpiry 0 means ticket doesn't exist
         log(type=ticketEvent, ticketId, CLAIM_FAIL_INVALID_TICKET)
         return(CLAIM_FAIL_INVALID_TICKET)
@@ -166,13 +199,13 @@ def claimTicket(ticketId, txStr:str, txHash, txIndex, sibling:arr, txBlockHash):
         log(type=ticketEvent, ticketId, CLAIM_FAIL_UNRESERVED)
         return(CLAIM_FAIL_UNRESERVED)
 
-    if (block.timestamp <= claimExpiry - ANYONE_CLAIM_SECS && msg.sender != self.ticket[ticketId].claimer):
+    if (block.timestamp <= claimExpiry - ANYONE_CLAIM_SECS && msg.sender != self.tickets[ticketId].claimer):
         log(type=ticketEvent, ticketId, CLAIM_FAIL_CLAIMER)
         return(CLAIM_FAIL_CLAIMER)
 
     claimerAddr = msg.sender
 
-    if (txHash != self.ticket[ticketId].claimTxHash):
+    if (txHash != self.tickets[ticketId].claimTxHash):
         log(type=ticketEvent, ticketId, CLAIM_FAIL_TX_HASH)
         return(CLAIM_FAIL_TX_HASH)
 
@@ -183,11 +216,11 @@ def claimTicket(ticketId, txStr:str, txHash, txIndex, sibling:arr, txBlockHash):
         return(CLAIM_FAIL_TX_ENCODING)
 
     numSatoshi = outputData[0]
-    weiBuyable = numSatoshi * self.ticket[ticketId].weiPerSatoshi
-    if weiBuyable < self.ticket[ticketId].numWei:
+    weiBuyable = numSatoshi * self.tickets[ticketId].weiPerSatoshi
+    if weiBuyable < self.tickets[ticketId].numWei:
         log(type=ticketEvent, ticketId, CLAIM_FAIL_INSUFFICIENT_SATOSHI)
         return(CLAIM_FAIL_INSUFFICIENT_SATOSHI)
-    weiBuyable = self.ticket[ticketId].numWei
+    weiBuyable = self.tickets[ticketId].numWei
 
     indexScriptOne = outputData[1]
 
@@ -196,7 +229,7 @@ def claimTicket(ticketId, txStr:str, txHash, txIndex, sibling:arr, txBlockHash):
     # btcWasSentToMe = compareScriptWithAddr(indexScriptOne, txStr, self.btcAcceptAddr)
     addrBtcWasSentTo = getEthAddr(indexScriptOne, txStr, 20, 6)
 
-    if addrBtcWasSentTo != self.ticket[ticketId].btcAddr:
+    if addrBtcWasSentTo != self.tickets[ticketId].btcAddr:
         log(type=ticketEvent, ticketId, CLAIM_FAIL_WRONG_BTC_ADDR)
         return(CLAIM_FAIL_WRONG_BTC_ADDR)
 
@@ -216,9 +249,7 @@ def claimTicket(ticketId, txStr:str, txHash, txIndex, sibling:arr, txBlockHash):
         res1 = send(claimerAddr, weiToClaimer)
         res2 = send(ethAddr, weiBuyable - feeToClaimer)
 
-        m_deleteTicket(ticketId)
-
-        log(type=ticketEvent, ticketId, ticketId)
+        deleteTicket(ticketId)
 
         # TODO for testing only; remove when deploying
         log(type=claimSuccess, addrBtcWasSentTo, numSatoshi, ethAddr, satoshiIn2ndOutput)
@@ -228,31 +259,27 @@ def claimTicket(ticketId, txStr:str, txHash, txIndex, sibling:arr, txBlockHash):
         log(type=ticketEvent, ticketId, CLAIM_FAIL_PROOF)
         return(CLAIM_FAIL_PROOF)
 
-# all tickets except those that have been claimed
-def getOpenTickets(startTicketId, endTicketId):
-    if endTicketId > self.lastTicketId:
-        endTicketId = self.lastTicketId
+def cancelTicket(ticketId):
+    if ticketAvailable(ticketId) and msg.sender == self.tickets[ticketId].owner:
+        deleteTicket(ticketId)
+        return(ticketId)
+    return(0)
 
-    maxSize = (endTicketId - startTicketId + 1) * TICKET_FIELDS
-    ticketArr = array(maxSize)
+# Get all open ticket IDs
+def getTicketIDs():
+    openTickets = self.openTickets
+    ticketId = self.lastTicketId
+    ticketIDs = array(openTickets)
 
-    j = 0
-    i = startTicketId
-    while i <= endTicketId:
-        if self.ticket[i].claimExpiry:
-            ticketArr[j]   = i
-            ticketArr[j+1] = self.ticket[i].btcAddr
-            ticketArr[j+2] = self.ticket[i].numWei
-            ticketArr[j+3] = self.ticket[i].weiPerSatoshi
-            ticketArr[j+4] = self.ticket[i].claimExpiry
-            ticketArr[j+5] = self.ticket[i].claimer
-            ticketArr[j+6] = self.ticket[i].claimTxHash
-            j += TICKET_FIELDS
+    i = 0
+    while i < openTickets:
+        ticketIDs[i] = self.ticketIDs[ticketId].id
+        ticketId = self.ticketIDs[ticketId].prevId
+        i = i + 1
 
-        i += 1
-
-    shrink(ticketArr, j)
-    return(ticketArr:arr)
+    if ticketIDs:
+        return(ticketIDs:arr)
+    return([0]:arr)
 
 
 # Optimized version of btcTx for retrieving

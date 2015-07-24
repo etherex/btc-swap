@@ -28,3 +28,7 @@ node_modules
 
 # Transpiler map files
 *.js.map
+
+# pycache folders and files
+__pycache__
+*.pyc

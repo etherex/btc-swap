@@ -5,11 +5,11 @@
 # This deploys the btc-swap contract
 
 # TODO You must update the address of BtcRelay
+# Frontier relay: soon!
 # Olympic testnet relay: 0x142f674e911cc55c226af81ac4d6de0a671d4abf
 # Private testnet relay: 0x77045e71a7a2c50903d88e564cd72fab11e82051
 - set:
     BtcRelay: "0x142f674e911cc55c226af81ac4d6de0a671d4abf"
-
 -
   deploy:
     BtcSwap:
@@ -45,9 +45,9 @@
       wait: True
 -
   transact:
-    ticket1:
+    ticket2:
       gas: 500000
-      to: "0x4491959fe1772faa7332464b0e7f1aa9aa2d8446" #$BtcSwap
+      to: $BtcSwap
       sig: createTicket:[int256,int256,int256]:int256
       data:
         - "0xa0dc485fc3ade71be5e1b68397abded386c0adb7"
@@ -58,9 +58,9 @@
       wait: True
 -
   transact:
-    ticket1:
+    ticket3:
       gas: 500000
-      to: "0x4491959fe1772faa7332464b0e7f1aa9aa2d8446" #$BtcSwap
+      to: $BtcSwap
       sig: createTicket:[int256,int256,int256]:int256
       data:
         - "0xa0dc485fc3ade71be5e1b68397abded386c0adb7"
@@ -71,9 +71,9 @@
       wait: True
 -
   transact:
-    ticket1:
+    ticket4:
       gas: 500000
-      to: "0x4491959fe1772faa7332464b0e7f1aa9aa2d8446" #$BtcSwap
+      to: $BtcSwap
       sig: createTicket:[int256,int256,int256]:int256
       data:
         - "0xa0dc485fc3ade71be5e1b68397abded386c0adb7"
@@ -84,9 +84,9 @@
       wait: True
 -
   transact:
-    ticket1:
+    ticket5:
       gas: 500000
-      to: "0x4491959fe1772faa7332464b0e7f1aa9aa2d8446" #$BtcSwap
+      to: $BtcSwap
       sig: createTicket:[int256,int256,int256]:int256
       data:
         - "0xa0dc485fc3ade71be5e1b68397abded386c0adb7"

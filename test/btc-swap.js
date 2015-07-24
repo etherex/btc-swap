@@ -6,15 +6,15 @@ var ticketId;
 
 function init() {
   const host = 'localhost:8545';
-  const address = '0x4491959fe1772faa7332464b0e7f1aa9aa2d8446';  // Olympic with very easy PoW
+  const address = '0x75160a6ac8c53e80be0f586b7c78bd24a18b89db';  // Olympic with very easy PoW
   // const address = '0x73b1c6d725eafb2b9514e2af092f9f61fd005088';  // private with PoW disabled
-  const from = '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826';
+  const sender = '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826';
   const btcTestnet = true;
 
   btcSwap = new BtcSwap({
     host: host,
     address: address,
-    from: from,
+    from: sender,
     btcTestnet: btcTestnet,
     debug: false
   });
@@ -35,6 +35,7 @@ describe('lookupTicket', function() {
       assert.strictEqual(result.expiry, 1);
       assert.strictEqual(result.claimer, '');
       assert.strictEqual(result.txHash, '');
+      assert.strictEqual(result.owner, '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826');
       done();
     });
   });
