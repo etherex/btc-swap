@@ -12,6 +12,7 @@ var client = new BtcSwap({
   address: "0x4491959fe1772faa7332464b0e7f1aa9aa2d8446", // Address of the BtcSwap contract
   host: "localhost:8545", // Ethereum node
   from: "0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826", // Ethereum account
+  testnet: true, // Use BTC testnet, defaults to true
   debug: true
 });
 ```

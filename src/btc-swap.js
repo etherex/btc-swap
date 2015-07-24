@@ -44,10 +44,10 @@ var btcSwap = function(params) {
   if (!params.from) {
     throw new Error('fromAccount missing');
   }
-  if (typeof params.btcTestnet === 'undefined')
-    this.btcTestnet = true;
+  if (typeof params.testnet === 'undefined')
+    this.testnet = true;
   else
-    this.btcTestnet = params.btcTestnet;
+    this.testnet = params.testnet;
 
   // Set web3 provider
   web3.setProvider(new web3.providers.HttpProvider('http://' + params.host));
@@ -73,14 +73,16 @@ var btcSwap = function(params) {
 
   // Load btcrelay contract
   var relayAddr = web3.eth.namereg.addr('btcrelay');
-  // var relayAddrTestnet = web3.eth.namereg.addr('btcrelayTestnet'); // TODO
-  var relayAddress = this.btcTestnet ? RELAY_TESTNET : relayAddr;
+  // var relayAddrTestnet = web3.eth.namereg.addr('btcrelayTestnet'); // TODO namereg btcrelay for BTC testnet
+  var relayAddress = this.testnet ? RELAY_TESTNET : relayAddr;
   this.relay = web3.eth.contract(relayAbi).at(relayAddress);
 
-  if (this.debug)
-    console.log('btc-swap contract:', this.contract);
+  // if (this.debug)
+  //   console.log('btc-swap contract:', this.contract);
 
-  this.versionAddr = this.btcTestnet ? 111 : 0;
+  this.versionAddr = this.testnet ? 111 : 0;
+  if (this.debug)
+    console.log('BTC network:', this.testnet ? "TESTNET" : "LIVE");
 
 
   this.lookupTicket = function(id, success, failure) {
@@ -89,9 +91,6 @@ var btcSwap = function(params) {
         failure("Error loading ticket " + id + ": " + String(error));
         return;
       }
-
-      if (this.debug)
-        console.log("LOOKUP", result);
 
       if (!result || !result[0] || !result[0].toNumber()) {
         success(false);
@@ -112,6 +111,9 @@ var btcSwap = function(params) {
         txHash: this.toHash(result[6]),
         owner: web3.toHex(result[7])
       };
+
+      // if (this.debug)
+      //   console.log("LOOKUP", ticket);
 
       success(ticket);
     }.bind(this));
@@ -684,8 +686,8 @@ var btcSwap = function(params) {
 
   this.toBtcAddr = function(bignum) {
     var hexAddress = web3.fromDecimal(bignum).substr(2);
-    if (this.debug)
-      console.log('hexAddress:', hexAddress, 'versionByte: ', this.versionAddr);
+    // if (this.debug)
+    //   console.log('hexAddress:', hexAddress, 'versionByte: ', this.versionAddr);
     return new bitcoin.Address(new Buffer(hexAddress, 'hex'), this.versionAddr).toString();
   };
 
@@ -745,7 +747,7 @@ var btcSwap = function(params) {
    * BTC intermediate wallet
    */
   this.generateWallet = function(success, failure) {
-    var network = this.btcTestnet ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
+    var network = this.testnet ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
 
     try {
       var key = bitcoin.ECKey.makeRandom();
@@ -764,7 +766,7 @@ var btcSwap = function(params) {
   };
 
   this.importWallet = function(wif, success, failure) {
-    var network = this.btcTestnet ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
+    var network = this.testnet ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
 
     try {
       var key = bitcoin.ECKey.fromWIF(wif);
@@ -783,7 +785,7 @@ var btcSwap = function(params) {
   };
 
   this.createTransaction = function(wallet, recipient, amountBtc, etherFee, etherAddress, success, failure) {
-    var blockchain = new Blockchain(this.btcTestnet ? 'testnet' : 'bitcoin');
+    var blockchain = new Blockchain(this.testnet ? 'testnet' : 'bitcoin');
 
     var amount = amountBtc * SATOSHI_PER_BTC;
     var minimum = amount + SATOSHIFEE;
@@ -892,7 +894,7 @@ var btcSwap = function(params) {
   };
 
   this.propagateTransaction = function(txHex, success, failure) {
-    var blockchain = new Blockchain(this.btcTestnet ? 'testnet' : 'bitcoin');
+    var blockchain = new Blockchain(this.testnet ? 'testnet' : 'bitcoin');
 
     if (!bitcoin.Transaction.fromHex(txHex)) {
       failure("Invalid raw transaction.");
@@ -954,7 +956,7 @@ var btcSwap = function(params) {
     var options = {gas: 300000};
 
     var reqOptions = {
-      hostname: (this.btcTestnet ? 't' : '') + 'btc.blockr.io',
+      hostname: (this.testnet ? 't' : '') + 'btc.blockr.io',
       port: 443,
       path: '/api/v1/block/raw/' + blockHash,
       method: 'GET',
