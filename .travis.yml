@@ -1,0 +1,19 @@
+language: python
+python:
+  - 2.7
+before_install:
+  - pip install -r dev_requirements.txt
+install:
+  - npm install -g grunt-cli
+  - npm install
+script:
+  - grunt build
+after_script:
+  - cd contracts && py.test -vvrs
+  - flake8 tests
+notifications:
+  irc:
+    channels:
+      - "chat.freenode.net#etherex-dev"
+    use_notice: true
+    skip_join: true
