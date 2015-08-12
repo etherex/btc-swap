@@ -575,10 +575,14 @@ var btcSwap = function(params) {
       var bnHash;
       var strHash;
 
-      if (this.debug)
-        console.log('PoW source: ', bnSrc.toString(16));
+      var powSrc = bnSrc.toString(16);
+      var srcPadLen = 96 - powSrc.length;
+      powSrc = Array(srcPadLen + 1).join('0') + powSrc;
 
-      src = ku.hexStringToBytes(bnSrc.toString(16));
+      if (this.debug)
+        console.log('PoW source: ', powSrc);
+
+      src = ku.hexStringToBytes(powSrc);
       src = new Uint32Array(src.buffer);
       var srcLen = src.length;
       var dst = new Uint32Array(8);
@@ -596,7 +600,11 @@ var btcSwap = function(params) {
       var tryPoW = function(i) {
         bnSrc = bnSrc.add(1);
 
-        src = ku.hexStringToBytes(bnSrc.toString(16));
+        var powSrc = bnSrc.toString(16);
+        var srcPadLen = 96 - powSrc.length;
+        powSrc = Array(srcPadLen + 1).join('0') + powSrc;
+
+        src = ku.hexStringToBytes(powSrc);
         src = new Uint32Array(src.buffer);
         kecc.digestWords(dst, 0, 8, src, 0, srcLen);
 
@@ -647,10 +655,14 @@ var btcSwap = function(params) {
     var bnHash;
     var strHash;
 
-    if (this.debug)
-      console.log('PoW source: ', bnSrc.toString(16));
+    var powSrc = bnSrc.toString(16);
+    var srcPadLen = 96 - powSrc.length;
+    powSrc = Array(srcPadLen + 1).join('0') + powSrc;
 
-    src = ku.hexStringToBytes(bnSrc.toString(16));
+    if (this.debug)
+      console.log('PoW source: ', powSrc);
+
+    src = ku.hexStringToBytes(powSrc);
     src = new Uint32Array(src.buffer);
     var srcLen = src.length;
     var dst = new Uint32Array(8);
