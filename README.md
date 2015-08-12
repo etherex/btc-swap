@@ -1,4 +1,5 @@
 # Ethereum BTC Swap
+[![Build Status](https://travis-ci.org/etherex/btc-swap.svg)](https://travis-ci.org/etherex/btc-swap)
 
 ## Installation
 ```
