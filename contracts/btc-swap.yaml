@@ -5,9 +5,10 @@
 # This deploys the btc-swap contract
 
 # TODO You must update the address of BtcRelay
-# Frontier relay: soon!
+# Frontier relay: soon(tm)
+# Frontier testnet: sooner
 # Olympic testnet relay: 0x142f674e911cc55c226af81ac4d6de0a671d4abf
-# Private testnet relay: 0x77045e71a7a2c50903d88e564cd72fab11e82051
+# Private testnet relay: 0x73b1c6d725eafb2b9514e2af092f9f61fd005088
 - set:
     BtcRelay: "0x142f674e911cc55c226af81ac4d6de0a671d4abf"
 -
