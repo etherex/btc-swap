@@ -8,9 +8,9 @@
 # Frontier relay: soon(tm)
 # Frontier testnet: sooner
 # Olympic testnet relay: 0x142f674e911cc55c226af81ac4d6de0a671d4abf
-# Private testnet relay: 0x73b1c6d725eafb2b9514e2af092f9f61fd005088
+# Private testnet relay: 0x3056d0b2379c86e6be6771c34f39f5affb65d855
 - set:
-    BtcRelay: "0x142f674e911cc55c226af81ac4d6de0a671d4abf"
+    BtcRelay: "0x3056d0b2379c86e6be6771c34f39f5affb65d855"
 -
   deploy:
     BtcSwap:

@@ -162,8 +162,8 @@ var btcSwap = function(params) {
           console.log("createTicket result:", res);
 
         if (err) {
-          failure(err);
-          console.log('createTicket sendTx error:', err);
+          failure(err.message);
+          console.error('createTicket sendTx error:', err);
           return;
         }
 
@@ -183,9 +183,9 @@ var btcSwap = function(params) {
     createFilter.watch(function(err, res) {
       try {
         if (err) {
-          failure(err);
+          failure(err.message);
           if (this.debug)
-            console.log('createFilter error:', err);
+            console.error('createFilter error:', err);
           return;
         }
 
@@ -274,8 +274,8 @@ var btcSwap = function(params) {
         try {
           if (err) {
             if (this.debug)
-              console.log('reserveFilter error:', err);
-            failure(err);
+              console.error('reserveFilter error:', err);
+            failure(err.message);
             return;
           }
 
@@ -311,9 +311,9 @@ var btcSwap = function(params) {
         if (this.debug)
           console.log('reserveTicket result:', res);
         if (err) {
-          failure(err);
+          failure(err.message);
           if (this.debug)
-            console.log('reserveTicket sendTx error:', err);
+            console.error('reserveTicket sendTx error:', err);
           return;
         }
         success({
@@ -392,8 +392,8 @@ var btcSwap = function(params) {
         try {
           if (err) {
             if (this.debug)
-              console.log('claimFilter error: ', err);
-            failure(err);
+              console.error('claimFilter error: ', err);
+            failure(err.message);
             return;
           }
 
@@ -420,9 +420,9 @@ var btcSwap = function(params) {
           if (this.debug)
             console.log("claimTicket result: ", res);
           if (err) {
-            failure(err);
+            failure(err,message);
             if (this.debug)
-              console.log('claimTicket sendTx error: ', err);
+              console.error('claimTicket sendTx error: ', err);
             return;
           }
           success(res);
@@ -451,8 +451,8 @@ var btcSwap = function(params) {
         try {
           if (err) {
             if (this.debug)
-              console.log('cancelFilter error: ', err);
-            failure(err);
+              console.error('cancelFilter error: ', err);
+            failure(err.message);
             return;
           }
 
@@ -479,9 +479,9 @@ var btcSwap = function(params) {
           if (this.debug)
             console.log("cancelTicket result: ", res);
           if (err) {
-            failure(err);
+            failure(err.message);
             if (this.debug)
-              console.log('cancelTicket sendTx error: ', err);
+              console.error('cancelTicket sendTx error: ', err);
             return;
           }
           success(ticketId, res);
@@ -501,8 +501,8 @@ var btcSwap = function(params) {
       try {
         if (err) {
           if (this.debug)
-            console.log('ticketFilter error: ', err);
-          failure(err);
+            console.error('ticketFilter error: ', err);
+          failure(err.message);
           return;
         }
 
@@ -729,7 +729,7 @@ var btcSwap = function(params) {
 
     dbgEvent.watch(function(err, res) {
       if (err) {
-        console.log('Debug Event error: ', err);
+        console.error('Debug Event error: ', err);
         return;
       }
 
@@ -739,7 +739,7 @@ var btcSwap = function(params) {
 
     txhEvent.watch(function(err, res) {
       if (err) {
-        console.log('txHash Event error: ', err);
+        console.error('txHash Event error: ', err);
         return;
       }
 
@@ -909,7 +909,7 @@ var btcSwap = function(params) {
     blockchain.transactions.propagate(txHex, function(err, res) {
       if (err) {
         console.error(err);
-        failure("Error propagating transaction: " + String(err));
+        failure("Error propagating transaction: " + err.message);
         return;
       }
 
@@ -931,7 +931,7 @@ var btcSwap = function(params) {
       if (err) {
         var error = "Error retrieving BTC chain head:";
         console.error(error, err);
-        failure(error + ' ' + String(err));
+        failure(error + ' ' + err.message);
         return;
       }
 
@@ -947,7 +947,7 @@ var btcSwap = function(params) {
       if (err) {
         var error = "Error retrieving BTC block height:";
         console.error(error, err);
-        failure(error + ' ' + String(err));
+        failure(error + ' ' + err.message);
         return;
       }
 
@@ -1015,7 +1015,7 @@ var btcSwap = function(params) {
         this.relay.storeBlockHeader.call(blockHeader, options, function(err, result) {
           if (err) {
             console.error(errorMsg, err);
-            failure(errorMsg + ' ' + String(err));
+            failure(errorMsg + ' ' + err.message);
             return;
           }
 

@@ -7,7 +7,7 @@ var ticketId;
 function init() {
   const host = 'localhost:8545';
   const address = '0x75160a6ac8c53e80be0f586b7c78bd24a18b89db';  // Olympic with very easy PoW
-  // const address = '0x73b1c6d725eafb2b9514e2af092f9f61fd005088';  // private with PoW disabled
+  // const address = '0x73b1c6d725eafb2b9514e2af092f9f61fd005088';  // Private with same easy PoW
   const sender = '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826';
   const btcTestnet = true;
 

@@ -56,6 +56,7 @@ macro ticketAvailable($ticketId):
         $claimExpiry > 0 && block.timestamp > $claimExpiry  # claimExpiry 0 means ticket doesn't exist
 
 macro deleteTicket($ticketId):
+    openTickets = self.openTickets
     self.tickets[$ticketId].btcAddr = 0
     self.tickets[$ticketId].numWei = 0
     self.tickets[$ticketId].weiPerSatoshi = 0
@@ -70,7 +71,12 @@ macro deleteTicket($ticketId):
         self.ticketIDs[prevId].nextId = nextId
         self.ticketIDs[nextId].prevId = prevId
     elif prevId:
-        self.lastTicketId = prevId
+        if openTickets > 1:
+            self.lastTicketId = prevId
+        self.ticketIDs[prevId].nextId = 0
+    if openTickets == 1:
+        self.lastTicketId = 0
+
     if nextId:
         self.ticketIDs[$ticketId].nextId = 0
     if prevId:
@@ -268,6 +274,9 @@ def cancelTicket(ticketId):
 # Get all open ticket IDs
 def getTicketIDs():
     openTickets = self.openTickets
+    if !openTickets:
+        return([]:arr)
+
     ticketId = self.lastTicketId
     ticketIDs = array(openTickets)
 
@@ -277,10 +286,10 @@ def getTicketIDs():
         ticketId = self.ticketIDs[ticketId].prevId
         i = i + 1
 
-    if ticketIDs:
-        return(ticketIDs:arr)
-    return([0]:arr)
+    return(ticketIDs:arr)
 
+def getLastTicketId():
+    return self.lastTicketId
 
 # Optimized version of btcTx for retrieving
 # the first 2 outputs of a Bitcoin transaction.

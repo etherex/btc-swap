@@ -43,7 +43,7 @@ class TestEthBtcSwap(object):
     def setup_class(cls):
         tester.gas_limit = int(2.8e6)  # 2.5e6 should be ok if testingOnly methods are commented out
         cls.s = tester.state()
-        cls.c = cls.s.abi_contract(cls.CONTRACT_DEBUG)
+        cls.c = cls.s.abi_contract(cls.CONTRACT_DEBUG, gas=3000000)
         cls.snapshot = cls.s.snapshot()
         cls.seed = tester.seed
 
@@ -1174,6 +1174,7 @@ class TestEthBtcSwap(object):
         assert 5 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
 
         assert self.c.getTicketIDs() == [5, 4, 3, 2, 1]
+        assert 5 == self.c.getLastTicketId()
 
         assert 3 == self.c.cancelTicket(3)
         assert self.c.getTicketIDs() == [5, 4, 2, 1]
@@ -1183,6 +1184,88 @@ class TestEthBtcSwap(object):
 
         assert 1 == self.c.cancelTicket(1)
         assert self.c.getTicketIDs() == [4, 2]
+
+        assert 2 == self.c.cancelTicket(2)
+        assert self.c.getTicketIDs() == [4]
+
+        assert 4 == self.c.cancelTicket(4)
+        assert self.c.getTicketIDs() == []
+
+        assert 0 == self.c.getLastTicketId()
+        assert 1 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert 2 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert self.c.getTicketIDs() == [2, 1]
+
+        assert 2 == self.c.cancelTicket(2)
+        assert self.c.getTicketIDs() == [1]
+
+        assert 1 == self.c.cancelTicket(1)
+        assert self.c.getTicketIDs() == []
+
+        assert 0 == self.c.getLastTicketId()
+        assert 1 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert 2 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert self.c.getTicketIDs() == [2, 1]
+
+    def testCancelLastTickets(self):
+        btcAddr = 9
+        numWei = self.ETHER
+        weiPerSatoshi = 8
+
+        assert self.c.getTicketIDs() == []
+
+        assert 1 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert 2 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert 3 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert 4 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert 5 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+
+        assert self.c.getTicketIDs() == [5, 4, 3, 2, 1]
+        assert 5 == self.c.cancelTicket(5)
+        assert self.c.getTicketIDs() == [4, 3, 2, 1]
+        assert 4 == self.c.cancelTicket(4)
+        assert self.c.getTicketIDs() == [3, 2, 1]
+        assert 3 == self.c.cancelTicket(3)
+        assert self.c.getTicketIDs() == [2, 1]
+        assert 2 == self.c.cancelTicket(2)
+        assert self.c.getTicketIDs() == [1]
+        assert 1 == self.c.cancelTicket(1)
+        assert self.c.getTicketIDs() == []
+
+        assert 0 == self.c.getLastTicketId()
+        assert 1 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert 2 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert self.c.getTicketIDs() == [2, 1]
+
+    def testCancelFirstTickets(self):
+        btcAddr = 9
+        numWei = self.ETHER
+        weiPerSatoshi = 8
+
+        assert self.c.getTicketIDs() == []
+
+        assert 1 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert 2 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert 3 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert 4 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert 5 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+
+        assert self.c.getTicketIDs() == [5, 4, 3, 2, 1]
+        assert 1 == self.c.cancelTicket(1)
+        assert self.c.getTicketIDs() == [5, 4, 3, 2]
+        assert 2 == self.c.cancelTicket(2)
+        assert self.c.getTicketIDs() == [5, 4, 3]
+        assert 3 == self.c.cancelTicket(3)
+        assert self.c.getTicketIDs() == [5, 4]
+        assert 4 == self.c.cancelTicket(4)
+        assert self.c.getTicketIDs() == [5]
+        assert 5 == self.c.cancelTicket(5)
+        assert self.c.getTicketIDs() == []
+
+        assert 0 == self.c.getLastTicketId()
+        assert 1 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert 2 == self.c.createTicket(btcAddr, numWei, weiPerSatoshi, value=numWei)
+        assert self.c.getTicketIDs() == [2, 1]
 
     # test Create Lookup Reserve ticket
     #
