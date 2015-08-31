@@ -89,6 +89,15 @@ var btcSwap = function(params) {
     console.log('BTC network:', this.testnet ? "TESTNET" : "LIVE");
 
 
+  this.reset = function() {
+    try {
+      web3.reset();
+    }
+    catch (e) {
+      console.error(e);
+    }
+  };
+
   this.lookupTicket = function(id, success, failure) {
     this.contract.lookupTicket.call(id, function(error, result) {
       if (error) {
