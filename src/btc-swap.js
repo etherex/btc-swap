@@ -925,7 +925,8 @@ var btcSwap = function(params) {
 
     blockchain.transactions.propagate(txHex, function(err, res) {
       if (err) {
-        console.error(err);
+        if (this.debug)
+          console.error(err);
         failure("Error propagating transaction: " + err.message);
         return;
       }
@@ -936,7 +937,7 @@ var btcSwap = function(params) {
       }
 
       success(res);
-    });
+    }.bind(this));
   };
 
 
@@ -957,7 +958,7 @@ var btcSwap = function(params) {
       var formattedHash = Array(64 - hash.length + 1).join('0') + hash;
 
       success(formattedHash);
-    });
+    }.bind(this));
   };
 
   this.getLastBlockHeight = function(success, failure) {
@@ -973,7 +974,7 @@ var btcSwap = function(params) {
       var height = res.toString();
 
       success(height);
-    });
+    }.bind(this));
   };
 
   this.storeBlockHeader = function(blockHash, success, failure) {
