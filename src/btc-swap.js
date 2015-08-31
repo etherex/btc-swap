@@ -176,7 +176,8 @@ var btcSwap = function(params) {
 
         if (err) {
           failure(err.message);
-          console.error('createTicket sendTx error:', err);
+          if (this.debug)
+            console.error('createTicket sendTx error:', err);
           return;
         }
 
@@ -552,7 +553,7 @@ var btcSwap = function(params) {
         if (this.debug)
           console.error('ticketFilter error, should maybe stopWatching()...');
         // this.ticketFilter.stopWatching();
-        failure('Ticket filter error: ' + String(e));
+        failure('Ticket filter error: ' + e.message);
       }
     }.bind(this));
   };
@@ -778,8 +779,9 @@ var btcSwap = function(params) {
       success(wallet);
     }
     catch(e) {
-      console.error(e);
-      failure(String(e));
+      if (this.debug)
+        console.error(e);
+      failure(e.message);
     }
   };
 
@@ -797,8 +799,9 @@ var btcSwap = function(params) {
       success(wallet);
     }
     catch(e) {
-      console.error(e);
-      failure(String(e));
+      if (this.debug)
+        console.error(e);
+      failure(e.message);
     }
   };
 
@@ -891,8 +894,9 @@ var btcSwap = function(params) {
       }
       catch(e) {
         error = "Error building BTC transaction: ";
-        console.error(error, e);
-        failure(error + String(e));
+        if (this.debug)
+          console.error(error, e);
+        failure(error + e.message);
         return;
       }
 
@@ -943,7 +947,8 @@ var btcSwap = function(params) {
     this.relay.getBlockchainHead.call(function(err, res) {
       if (err) {
         var error = "Error retrieving BTC chain head:";
-        console.error(error, err);
+        if (this.debug)
+          console.error(error, err);
         failure(error + ' ' + err.message);
         return;
       }
@@ -959,7 +964,8 @@ var btcSwap = function(params) {
     this.relay.getLastBlockHeight.call(function(err, res) {
       if (err) {
         var error = "Error retrieving BTC block height:";
-        console.error(error, err);
+        if (this.debug)
+          console.error(error, err);
         failure(error + ' ' + err.message);
         return;
       }
@@ -985,7 +991,8 @@ var btcSwap = function(params) {
     var req = https.request(reqOptions, function(res) {
       if (!res || res.statusCode !== 200) {
         errorMsg = "Error retrieving BTC block.";
-        console.error(errorMsg, res);
+        if (this.debug)
+          console.error(errorMsg, res);
         failure(errorMsg);
         return;
       }
@@ -995,7 +1002,8 @@ var btcSwap = function(params) {
 
         if (json.status !== 'success') {
           errorMsg = "Error retrieving BTC block data.";
-          console.error(errorMsg, json);
+          if (this.debug)
+            console.error(errorMsg, json);
           failure(errorMsg);
           return;
         }
@@ -1003,7 +1011,8 @@ var btcSwap = function(params) {
         data = json.data;
         if (!data || !data.tx) {
           errorMsg = "Not enough data in BTC block.";
-          console.error(errorMsg, data);
+          if (this.debug)
+            console.error(errorMsg, data);
           failure(errorMsg);
           return;
         }
@@ -1027,7 +1036,8 @@ var btcSwap = function(params) {
 
         this.relay.storeBlockHeader.call(blockHeader, options, function(err, result) {
           if (err) {
-            console.error(errorMsg, err);
+            if (this.debug)
+              console.error(errorMsg, err);
             failure(errorMsg + ' ' + err.message);
             return;
           }
@@ -1040,7 +1050,8 @@ var btcSwap = function(params) {
           if (blockNumber) {
             this.relay.storeBlockHeader.sendTransaction(blockHeader, options, function(error, txHash) {
               if (error) {
-                console.error(errorMsg, error);
+                if (this.debug)
+                  console.error(errorMsg, error);
                 failure(errorMsg + ' Sending transaction failed: ' + String(error));
                 return;
               }
@@ -1049,7 +1060,8 @@ var btcSwap = function(params) {
                 var txFilter = web3.eth.filter('latest');
                 txFilter.watch( function(filterError, newBlockHash) {
                   if (filterError) {
-                    console.error(errorMsg, filterError);
+                    if (this.debug)
+                      console.error(errorMsg, filterError);
                     failure(errorMsg + ' Filter failed: ' + String(filterError));
                     return;
                   }
@@ -1076,8 +1088,9 @@ var btcSwap = function(params) {
     req.end();
     req.on('error', function(e) {
       errorMsg = "Request error:";
-      console.error(errorMsg, e);
-      failure(errorMsg + " " + String(e));
+      if (this.debug)
+        console.error(errorMsg, e);
+      failure(errorMsg + " " + e.message);
     });
   };
 };
