@@ -12,7 +12,7 @@ var ku = require('./keccak.js');
 var bnTarget = new BigNumber(2).pow(245);
 var kecc = new ku.Keccak();
 
-var RELAY_TESTNET = "0x142f674e911cc55c226af81ac4d6de0a671d4abf";
+var RELAY_TESTNET = "0x2fd4f3ae10608cd6192339e72d4f6a0c182dee22";
 var TWO_POW_256 = new BigNumber(2).pow(256);
 
 var WEI_PER_ETHER = new BigNumber(10).pow(18);
@@ -62,7 +62,8 @@ var btcSwap = function(params) {
       throw err;
     }
     if (result === '0x') {
-      throw new Error('btc-swap contract not found');
+      // throw new Error('btc-swap contract not found');
+      console.error('btc-swap contract not found');
     }
   });
 
