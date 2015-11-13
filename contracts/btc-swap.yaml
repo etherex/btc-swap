@@ -6,11 +6,12 @@
 
 # TODO You must update the address of BtcRelay
 # Frontier relay: soon(tm)
-# Frontier testnet: sooner
+# Frontier testnet relay: 0xa9eb7eec49f39a3030baacc95111fb94192be354
 # Olympic testnet relay: 0x142f674e911cc55c226af81ac4d6de0a671d4abf
 # Private testnet relay: 0x3056d0b2379c86e6be6771c34f39f5affb65d855
+# ConsenSys testnet relay: 0x2fd4f3ae10608cd6192339e72d4f6a0c182dee22
 - set:
-    BtcRelay: "0x3056d0b2379c86e6be6771c34f39f5affb65d855"
+    BtcRelay: "0xa9eb7eec49f39a3030baacc95111fb94192be354"
 -
   deploy:
     BtcSwap:

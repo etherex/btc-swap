@@ -33,10 +33,10 @@
     "mocha": "^2.3.3"
   },
   "dependencies": {
-    "bignumber.js": "^2.0.7",
+    "bignumber.js": "^2.1.0",
     "bitcoin-proof": "^1.0.0",
-    "bitcoinjs-lib": "^1.5.8",
+    "bitcoinjs-lib": "=1.5.8",
     "cb-blockr": "^3.1.2",
-    "web3": "^0.13.0"
+    "web3": "^0.15.1"
   }
 }
