@@ -441,7 +441,7 @@ var btcSwap = function(params) {
           if (this.debug)
             console.log("claimTicket result: ", res);
           if (err) {
-            failure(err,message);
+            failure(err.message);
             if (this.debug)
               console.error('claimTicket sendTx error: ', err);
             return;
