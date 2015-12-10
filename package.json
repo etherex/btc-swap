@@ -1,6 +1,6 @@
 {
   "name": "btc-swap",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Ethereum Bitcoin Swap library",
   "main": "lib/btc-swap.js",
   "scripts": {

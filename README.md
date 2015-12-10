@@ -42,13 +42,15 @@ first parameter and the Ethereum transaction hash as second parameter. The
 `completed` callback gets fired when the transaction is mined and returns the
 reserved ticket object.
 
-#### `claimTicket(ticketId, txHex, txHash, txIndex, merkleSibling, txBlockHash, success, completed, failure)`
+#### `claimTicket(ticketId, txHex, txHash, txIndex, merkleSibling, txBlockHash,
+  feeWei, success, completed, failure)`
 Claim a ticket with ID `ticketId`, with the signed BTC transaction hex `txHex`,
 the BTC transaction hash `txHash`, BTC transaction index `txIndex`, BTC merkle
-siblings `merkleSibling` and BTC block hash `txBlockHash`. The `success`
-callback gets fired when the Ethereum transaction is sent and returns the
-Ethereum transaction hash. The `completed` callback gets fired when the
-transaction is mined and returns the ticket ID.
+siblings `merkleSibling` and BTC block hash `txBlockHash`. `feeWei` can be
+obtained by calling `getFeeAmount(txBlockHash)` and will be the transaction's
+value if it's above zero. The `success` callback gets fired when the Ethereum
+transaction is sent and returns the Ethereum transaction hash. The `completed`
+callback gets fired when the transaction is mined and returns the ticket ID.
 
 #### `cancelTicket(ticketId, success, failure)`
 Cancel a ticket with `ticketId`, if the ticket is still reservable and by
@@ -120,10 +122,15 @@ Query the [btcrelay](https://github.com/ethereum/btcrelay) contract for its last
 stored BTC block number. The `success` callback gets fired on a successful call
 and returns the block number of the latest block.
 
-#### `storeBlockHeader(blockHash, success, failure)`
+#### `getFeeAmount(blockHash, success, failure)`
+Get the fee from [btcrelay](https://github.com/ethereum/btcrelay) to validate a
+transaction in a given `blockHash`. The `success` callback gets fired on a
+successful call and returns the fee amount in wei.
+
+#### `storeBlockWithFee(blockHash, feeWei, success, failure)`
 Query the [blockr](https://blockr.io) API for the raw block data of a block
 with hash `blockHash`, generate the BTC block header from that data, call the
-`storeBlockHeader` method of [btcrelay](https://github.com/ethereum/btcrelay)
+`storeBlockWithFee` method of [btcrelay](https://github.com/ethereum/btcrelay)
 and send an Ethereum transaction for that same method if successful, effectively
 storing the block header. The `success` callback gets fired when the transaction
 is mined and returns the BTC block number for which the block header was stored.

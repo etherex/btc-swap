@@ -43,9 +43,7 @@ macro CLAIM_FAIL_TX_ENCODING: -27
 
 # Events
 event ticketEvent(ticketId:indexed, rval)
-
-# TODO testing only
-event claimSuccess(btcAddr, numSatoshi, ethAddr, satoshiIn2ndOutput)
+event claimSuccess(btcAddr, numSatoshi, ethAddr, satoshiIn2ndOutput, feeWei)
 
 # Macros
 
@@ -239,8 +237,7 @@ def claimTicket(ticketId, txStr:str, txHash, txIndex, sibling:arr, txBlockHash):
         log(type=ticketEvent, ticketId, CLAIM_FAIL_WRONG_BTC_ADDR)
         return(CLAIM_FAIL_WRONG_BTC_ADDR)
 
-
-    if self.trustedBtcRelay.verifyTx(txHash, txIndex, sibling, txBlockHash):
+    if self.trustedBtcRelay.verifyTx(txHash, txIndex, sibling, txBlockHash, value=msg.value):
 
         satoshiIn2ndOutput = outputData[2]
 
@@ -257,8 +254,7 @@ def claimTicket(ticketId, txStr:str, txHash, txIndex, sibling:arr, txBlockHash):
 
         deleteTicket(ticketId)
 
-        # TODO for testing only; remove when deploying
-        log(type=claimSuccess, addrBtcWasSentTo, numSatoshi, ethAddr, satoshiIn2ndOutput)
+        log(type=claimSuccess, addrBtcWasSentTo, numSatoshi, ethAddr, satoshiIn2ndOutput, msg.value)
 
         return(ticketId)
     else:

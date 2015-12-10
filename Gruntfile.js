@@ -10,7 +10,6 @@ module.exports = function(grunt) {
           "lib/keccak.js": "src/keccak.js",
           "lib/btc-swap.js": "src/btc-swap.js",
           "lib/abi/btc-swap.js": "src/abi/btc-swap.js",
-          "lib/abi/debug.js": "src/abi/debug.js",
           "lib/abi/btcrelay.js": "src/abi/btcrelay.js"
         }
       }

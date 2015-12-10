@@ -408,9 +408,11 @@ class TestEthBtcSwap(object):
 
     def assertClaimSuccessLogs(self, eventArr, satoshiOutputOne, btcAddr, ethAddr, satoshiOutputTwo, ticketId):
         assert eventArr[1] == {
-            '_event_type': 'claimSuccess', 'numSatoshi': satoshiOutputOne,
+            '_event_type': 'claimSuccess',
+            'numSatoshi': satoshiOutputOne,
             'btcAddr': btcAddr,
             'ethAddr': ethAddr,
+            'feeWei': 0,
             'satoshiIn2ndOutput': satoshiOutputTwo
         }
         eventArr.pop()
